@@ -162,21 +162,21 @@
   .mode-btn.secondary { background:#4fc3f7; box-shadow: 0 4px 0 #0288d1; }
   .mode-btn.danger { background:#ef5350; box-shadow: 0 4px 0 #b71c1c; color:#fff; }
 
-  /* Controller (phone) active screen — forced landscape layout */
+  /* Controller (phone) active screen — forced landscape, NES-style layout */
   #controllerActive {
     position: absolute; inset:0; z-index: 55;
     display: none; flex-direction: column; justify-content: space-between;
-    background: radial-gradient(circle at 50% 30%, #232b38, #0d1117);
-    padding: 2vh max(3vw, env(safe-area-inset-right)) 2vh max(3vw, env(safe-area-inset-left));
-    --cell: clamp(50px, 12vh, 86px);
-    --ab: clamp(76px, 21vh, 128px);
-    --ab-small: clamp(56px, 15vh, 92px);
+    background: radial-gradient(circle at 50% 30%, #2c2f36, #111316);
+    padding: 1.6vh max(3vw, env(safe-area-inset-right)) 1.8vh max(3vw, env(safe-area-inset-left));
+    --cell: clamp(48px, 12vh, 82px);
+    --ab: clamp(58px, 15vh, 92px);
   }
   #controllerActive.active { display: flex; }
   #controllerTop { display:flex; justify-content: space-between; align-items:flex-start; color:#fff; flex: 0 0 auto; }
   #controllerTop .code-tag { background: rgba(255,255,255,0.15); padding: 5px 14px; border-radius: 8px; font-weight:bold; letter-spacing: 4px; font-size: 14px; }
   #controllerStatus { font-size: 11px; opacity: 0.75; margin-top: 4px; }
   #controllerStatus.ok { color: #69f0ae; opacity: 1; }
+  #controllerLegend { font-size: 10.5px; opacity: 0.6; margin-top: 3px; letter-spacing: 0.3px; }
   #controllerPad { display:flex; justify-content: space-between; align-items:center; flex: 1; min-height: 0; }
 
   /* Rotate-phone prompt (shown while the phone is in portrait) */
@@ -210,29 +210,32 @@
   .dpad-right { grid-column:3; grid-row:2; border-radius: 0 10px 10px 0; }
   .dpad-down  { grid-column:2; grid-row:3; border-radius: 0 0 10px 10px; }
 
-  /* A/B action buttons, Nintendo style diagonal layout */
-  .abpad { position: relative; width: var(--ab); height: var(--ab); flex: 0 0 auto; }
+  /* SELECT / START — small pill buttons in the middle, out of the way of thumbs */
+  .ssGroup { display:flex; flex-direction:column; align-items:center; gap:6px; flex: 0 0 auto; }
+  .ss-labels { display:flex; gap: 22px; }
+  .ss-labels span { font-size: 10px; font-weight:bold; letter-spacing:1px; color:#e57373; }
+  .ss-btns { display:flex; gap: 16px; }
+  .ss-btn {
+    width: clamp(46px, 9vh, 64px); height: clamp(18px, 3.6vh, 26px);
+    border-radius: 20px; background: linear-gradient(180deg,#3a3f47,#1f2226);
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.08);
+  }
+  .ss-btn:active { background: linear-gradient(180deg,#50565f,#2c2f34); }
+
+  /* B / A action buttons — side by side, red, NES style (no overlap) */
+  .abRow { display:flex; align-items:center; gap: clamp(10px, 3vh, 22px); flex: 0 0 auto; }
+  .ab-wrap { display:flex; flex-direction:column; align-items:center; gap: 6px; }
   .ab-btn {
-    position:absolute; border-radius:50%; color:#fff; font-weight:bold;
+    width: var(--ab); height: var(--ab); border-radius: 50%;
+    color:#fff; font-weight:bold; font-size: calc(var(--ab) * 0.38);
     display:flex; align-items:center; justify-content:center;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
     user-select:none;
+    background: radial-gradient(circle at 30% 28%, #ff6b5e, #c62828);
+    box-shadow: 0 6px 0 #8e1c1c, inset 0 2px 4px rgba(255,255,255,0.3);
   }
-  #cJump {
-    width: var(--ab); height: var(--ab);
-    right: 0; top: 0; font-size: calc(var(--ab) * 0.4);
-    background: radial-gradient(circle at 30% 28%, #ff8a65, #d84315);
-    box-shadow: 0 6px 0 #8f2d0f, inset 0 2px 4px rgba(255,255,255,0.3);
-  }
-  #cJump:active { box-shadow: 0 2px 0 #8f2d0f; transform: translateY(4px); }
-  #cDown {
-    width: var(--ab-small); height: var(--ab-small);
-    left: 0; bottom: 0; font-size: calc(var(--ab-small) * 0.4);
-    background: radial-gradient(circle at 30% 28%, #4fc3f7, #0277bd);
-    box-shadow: 0 6px 0 #01579b, inset 0 2px 4px rgba(255,255,255,0.3);
-  }
-  #cDown:active { box-shadow: 0 2px 0 #01579b; transform: translateY(4px); }
-  .ab-label { position:absolute; bottom: -20px; width:100%; text-align:center; font-size:10px; color:#8a939e; letter-spacing:1px; }
+  .ab-btn:active { box-shadow: 0 2px 0 #8e1c1c; transform: translateY(4px); }
+  .ab-label { font-size: 11px; font-weight:bold; letter-spacing:1px; color:#e57373; }
 
   /* Focus highlight for controller/keyboard menu navigation (no touch on TV) */
   .nav-focus {
@@ -336,6 +339,7 @@
       <div>
         <div class="code-tag" id="controllerCodeTag">----</div>
         <div id="controllerStatus">Connexion en cours…</div>
+        <div id="controllerLegend">A: sauter/valider · B: tuyau · START: pause · SELECT: carte</div>
       </div>
       <button class="mode-btn danger" id="controllerQuitBtn">Quitter</button>
     </div>
@@ -347,9 +351,16 @@
         <div class="dpad-btn dpad-right" id="cRight">▶</div>
         <div class="dpad-btn dpad-down" id="cDownPad">▼</div>
       </div>
-      <div class="abpad">
-        <div class="ab-btn" id="cDown">B<span class="ab-label">tuyau</span></div>
-        <div class="ab-btn" id="cJump">A<span class="ab-label">sauter/valider</span></div>
+      <div class="ssGroup">
+        <div class="ss-labels"><span>SELECT</span><span>START</span></div>
+        <div class="ss-btns">
+          <div class="ss-btn" id="cSelect"></div>
+          <div class="ss-btn" id="cStart"></div>
+        </div>
+      </div>
+      <div class="abRow">
+        <div class="ab-wrap"><div class="ab-btn" id="cDown">B</div></div>
+        <div class="ab-wrap"><div class="ab-btn" id="cJump">A</div></div>
       </div>
     </div>
   </div>
@@ -673,6 +684,20 @@
     showMap();
   }
 
+  function pauseGame(){
+    if(gameState !== 'playing') return;
+    gameState = 'paused';
+    showOverlay('⏸️ Pause', 'Partie en pause.', 'Reprendre', 'Quitter vers la carte');
+  }
+  function resumeGame(){
+    if(gameState !== 'paused') return;
+    gameState = 'playing';
+    currentScreen = 'playing';
+    setNavRows([]);
+    hideOverlay();
+    requestAnimationFrame(loop);
+  }
+
   function updateHUD(){
     document.getElementById('score').textContent = '🪙 ' + coinsRun;
     document.getElementById('lives').textContent = '❤️'.repeat(Math.max(lives,0));
@@ -709,7 +734,7 @@
 
   overlayBtn.addEventListener('click', () => {
     if(gameState === 'won') goToNextLevel();
-    else if(gameState === 'over') startLevel(currentWorld, currentLevel);
+    else if(gameState === 'paused') resumeGame();
     else startLevel(currentWorld, currentLevel);
   });
   overlayBtn2.addEventListener('click', backToMap);
@@ -785,8 +810,20 @@
   document.addEventListener('fullscreenchange', () => { fsBtn.textContent = isFullscreen() ? '⤢' : '⛶'; });
   document.addEventListener('webkitfullscreenchange', () => { fsBtn.textContent = isFullscreen() ? '⤢' : '⛶'; });
 
+  // ---------- Start / Select (pause & menu access, usable from keyboard, TV remote or phone pad) ----------
+  function onStartPressed(){
+    if(currentScreen === 'playing') pauseGame();
+    else if(gameState === 'paused') resumeGame();
+    else navActivate();
+  }
+  function onSelectPressed(){
+    if(currentScreen === 'playing' || gameState === 'paused') backToMap();
+  }
+
   // ---------- Input ----------
   window.addEventListener('keydown', (e) => {
+    if(['p','P','Escape'].includes(e.key)){ onStartPressed(); e.preventDefault(); return; }
+    if(e.key === 'Backspace'){ onSelectPressed(); e.preventDefault(); return; }
     if(currentScreen !== 'playing'){
       if(['ArrowLeft','a','A'].includes(e.key)){ navMove('left'); e.preventDefault(); }
       else if(['ArrowRight','d','D'].includes(e.key)){ navMove('right'); e.preventDefault(); }
@@ -1383,8 +1420,17 @@
       mqttHostClient = mqtt.connect(MQTT_BROKER, { connectTimeout: 8000, reconnectPeriod: 2000 });
       mqttHostClient.on('connect', () => {
         mqttHostClient.subscribe(TOPIC_PREFIX + code);
+        mqttHostClient.subscribe(TOPIC_PREFIX + code + '/cmd');
       });
       mqttHostClient.on('message', (topic, message) => {
+        const hs = document.getElementById('hostStatus');
+        if(hs && hs.textContent !== '✓ Manette connectée'){ hs.textContent = '✓ Manette connectée'; hs.style.color = '#69f0ae'; }
+        if(topic.endsWith('/cmd')){
+          const cmd = message.toString();
+          if(cmd === 'start') onStartPressed();
+          else if(cmd === 'select') onSelectPressed();
+          return;
+        }
         try{
           const st = JSON.parse(message.toString());
           const next = {left:!!st.left, right:!!st.right, jump:!!st.jump, down:!!st.down, up:!!st.up};
@@ -1400,8 +1446,6 @@
           remoteKeys.jump = next.jump;
           remoteKeys.down = next.down;
           remoteKeys.up = next.up;
-          const hs = document.getElementById('hostStatus');
-          if(hs && hs.textContent !== '✓ Manette connectée'){ hs.textContent = '✓ Manette connectée'; hs.style.color = '#69f0ae'; }
         }catch(e){}
       });
     }catch(e){ /* mqtt indisponible, le clavier reste utilisable */ }
@@ -1462,6 +1506,19 @@
     el.addEventListener('mouseup', off);
     el.addEventListener('mouseleave', off);
   }
+  function bindCommandBtn(id, cmd){
+    const el = document.getElementById(id);
+    const fire = e => {
+      if(mqttControllerClient && mqttControllerClient.connected){
+        mqttControllerClient.publish(TOPIC_PREFIX + controllerCode + '/cmd', cmd);
+      }
+      e.preventDefault();
+    };
+    el.addEventListener('touchstart', fire);
+    el.addEventListener('mousedown', fire);
+  }
+  bindCommandBtn('cStart', 'start');
+  bindCommandBtn('cSelect', 'select');
   bindPad('cLeft','left');
   bindPad('cRight','right');
   bindPadDual('cUp','up','jump');
