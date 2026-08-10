@@ -162,32 +162,45 @@
   .mode-btn.secondary { background:#4fc3f7; box-shadow: 0 4px 0 #0288d1; }
   .mode-btn.danger { background:#ef5350; box-shadow: 0 4px 0 #b71c1c; color:#fff; }
 
-  /* Controller (phone) active screen */
+  /* Controller (phone) active screen — forced landscape layout */
   #controllerActive {
     position: absolute; inset:0; z-index: 55;
     display: none; flex-direction: column; justify-content: space-between;
     background: radial-gradient(circle at 50% 30%, #232b38, #0d1117);
-    padding: 4vh 5vw;
+    padding: 2vh max(3vw, env(safe-area-inset-right)) 2vh max(3vw, env(safe-area-inset-left));
+    --cell: clamp(50px, 12vh, 86px);
+    --ab: clamp(76px, 21vh, 128px);
+    --ab-small: clamp(56px, 15vh, 92px);
   }
   #controllerActive.active { display: flex; }
-  #controllerTop { display:flex; justify-content: space-between; align-items:center; color:#fff; }
-  #controllerTop .code-tag { background: rgba(255,255,255,0.15); padding: 6px 16px; border-radius: 8px; font-weight:bold; letter-spacing: 4px; font-size: 15px; }
-  #controllerStatus { font-size: 12px; opacity: 0.75; margin-top: 4px; }
+  #controllerTop { display:flex; justify-content: space-between; align-items:flex-start; color:#fff; flex: 0 0 auto; }
+  #controllerTop .code-tag { background: rgba(255,255,255,0.15); padding: 5px 14px; border-radius: 8px; font-weight:bold; letter-spacing: 4px; font-size: 14px; }
+  #controllerStatus { font-size: 11px; opacity: 0.75; margin-top: 4px; }
   #controllerStatus.ok { color: #69f0ae; opacity: 1; }
-  #controllerPad { display:flex; justify-content: space-between; align-items:center; flex: 1; }
+  #controllerPad { display:flex; justify-content: space-between; align-items:center; flex: 1; min-height: 0; }
 
-  /* D-pad, Nintendo style */
+  /* Rotate-phone prompt (shown while the phone is in portrait) */
+  #rotatePrompt {
+    display: none; position:absolute; inset:0; z-index: 60;
+    background: #0d1117; color:#fff; text-align:center;
+    flex-direction: column; align-items:center; justify-content:center; gap: 14px;
+  }
+  #rotatePrompt .icon { font-size: 54px; animation: rotateHint 1.6s ease-in-out infinite; }
+  @keyframes rotateHint { 0%,100%{ transform:rotate(0deg);} 50%{ transform:rotate(90deg);} }
+  #rotatePrompt p { font-size: 15px; opacity: 0.85; max-width: 260px; }
+
+  /* D-pad, Nintendo style — sized from viewport height (stable in landscape) */
   .dpad {
     display: grid;
-    grid-template-columns: 22vw 22vw 22vw;
-    grid-template-rows: 22vw 22vw 22vw;
-    max-width: 220px; max-height: 220px;
-    width: 60vw; height: 60vw;
+    grid-template-columns: var(--cell) var(--cell) var(--cell);
+    grid-template-rows: var(--cell) var(--cell) var(--cell);
+    width: calc(var(--cell) * 3); height: calc(var(--cell) * 3);
+    flex: 0 0 auto;
   }
   .dpad-btn {
     background: linear-gradient(180deg,#3a3f47,#23262b);
     color:#cfd3d8; display:flex; align-items:center; justify-content:center;
-    font-size: 8vw; user-select:none;
+    font-size: calc(var(--cell) * 0.42); user-select:none;
     box-shadow: inset 0 -3px 0 rgba(0,0,0,0.45), inset 0 2px 0 rgba(255,255,255,0.06);
   }
   .dpad-btn:active { background: linear-gradient(180deg,#50565f,#2c2f34); color:#fff; }
@@ -198,7 +211,7 @@
   .dpad-down  { grid-column:2; grid-row:3; border-radius: 0 0 10px 10px; }
 
   /* A/B action buttons, Nintendo style diagonal layout */
-  .abpad { position: relative; width: 46vw; height: 46vw; max-width: 240px; max-height: 240px; }
+  .abpad { position: relative; width: var(--ab); height: var(--ab); flex: 0 0 auto; }
   .ab-btn {
     position:absolute; border-radius:50%; color:#fff; font-weight:bold;
     display:flex; align-items:center; justify-content:center;
@@ -206,20 +219,27 @@
     user-select:none;
   }
   #cJump {
-    width: 34vw; height: 34vw; max-width: 150px; max-height: 150px;
-    right: 0; top: 0; font-size: 6vw;
+    width: var(--ab); height: var(--ab);
+    right: 0; top: 0; font-size: calc(var(--ab) * 0.4);
     background: radial-gradient(circle at 30% 28%, #ff8a65, #d84315);
     box-shadow: 0 6px 0 #8f2d0f, inset 0 2px 4px rgba(255,255,255,0.3);
   }
   #cJump:active { box-shadow: 0 2px 0 #8f2d0f; transform: translateY(4px); }
   #cDown {
-    width: 26vw; height: 26vw; max-width: 110px; max-height: 110px;
-    left: 0; bottom: 0; font-size: 4.5vw;
+    width: var(--ab-small); height: var(--ab-small);
+    left: 0; bottom: 0; font-size: calc(var(--ab-small) * 0.4);
     background: radial-gradient(circle at 30% 28%, #4fc3f7, #0277bd);
     box-shadow: 0 6px 0 #01579b, inset 0 2px 4px rgba(255,255,255,0.3);
   }
   #cDown:active { box-shadow: 0 2px 0 #01579b; transform: translateY(4px); }
-  .ab-label { position:absolute; bottom: -22px; width:100%; text-align:center; font-size:11px; color:#8a939e; letter-spacing:1px; }</style>
+  .ab-label { position:absolute; bottom: -20px; width:100%; text-align:center; font-size:10px; color:#8a939e; letter-spacing:1px; }
+
+  /* Focus highlight for controller/keyboard menu navigation (no touch on TV) */
+  .nav-focus {
+    outline: 4px solid #ffcc00 !important;
+    box-shadow: 0 0 0 4px rgba(255,204,0,0.35), 0 0 16px rgba(255,204,0,0.6) !important;
+    transform: scale(1.04);
+  }</style>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -308,6 +328,10 @@
   </div>
 
   <div id="controllerActive">
+    <div id="rotatePrompt">
+      <div class="icon">🔄</div>
+      <p>Tourne ton téléphone en mode paysage pour utiliser la manette.</p>
+    </div>
     <div id="controllerTop">
       <div>
         <div class="code-tag" id="controllerCodeTag">----</div>
@@ -324,8 +348,8 @@
         <div class="dpad-btn dpad-down" id="cDownPad">▼</div>
       </div>
       <div class="abpad">
-        <div class="ab-btn" id="cDown">B</div>
-        <div class="ab-btn" id="cJump">A</div>
+        <div class="ab-btn" id="cDown">B<span class="ab-label">tuyau</span></div>
+        <div class="ab-btn" id="cJump">A<span class="ab-label">sauter/valider</span></div>
       </div>
     </div>
   </div>
@@ -506,8 +530,42 @@
   let player, levelData, camX, coinsRun, lives, gameState, animT;
   let currentWorld = 1, currentLevel = 1;
   const keys = {left:false, right:false, jump:false, down:false};
-  const remoteKeys = {left:false, right:false, jump:false, down:false};
+  const remoteKeys = {left:false, right:false, jump:false, down:false, up:false};
   function isDown(name){ return keys[name] || remoteKeys[name]; }
+
+  // ---------- Generic menu navigation (keyboard arrows / TV remote / phone D-pad) ----------
+  let currentScreen = 'modeChoice'; // 'modeChoice' | 'modeHostCode' | 'map' | 'overlay' | 'playing'
+  let navRows = [];
+  let navPos = {row:0, col:0};
+
+  function setNavRows(rows){
+    navRows = rows.map(r => r.filter(Boolean)).filter(r => r.length > 0);
+    navPos = {row:0, col:0};
+    updateNavFocus();
+  }
+  function updateNavFocus(){
+    document.querySelectorAll('.nav-focus').forEach(el => el.classList.remove('nav-focus'));
+    if(!navRows.length) return;
+    const el = navRows[navPos.row][navPos.col];
+    if(el){
+      el.classList.add('nav-focus');
+      if(el.scrollIntoView) el.scrollIntoView({block:'nearest', behavior:'smooth'});
+    }
+  }
+  function navMove(dir){
+    if(!navRows.length) return;
+    if(dir === 'left') navPos.col = Math.max(0, navPos.col - 1);
+    else if(dir === 'right') navPos.col = Math.min(navRows[navPos.row].length - 1, navPos.col + 1);
+    else if(dir === 'up') navPos.row = Math.max(0, navPos.row - 1);
+    else if(dir === 'down') navPos.row = Math.min(navRows.length - 1, navPos.row + 1);
+    navPos.col = Math.min(navPos.col, navRows[navPos.row].length - 1);
+    updateNavFocus();
+  }
+  function navActivate(){
+    if(!navRows.length) return;
+    const el = navRows[navPos.row][navPos.col];
+    if(el && !el.disabled) el.click();
+  }
 
   function resizePlayerTo(state){
     const oldW = player.w, oldH = player.h;
@@ -532,6 +590,8 @@
     coinsRun = 0;
     animT = 0;
     gameState = 'playing';
+    currentScreen = 'playing';
+    setNavRows([]);
     hideOverlay();
     hideMap();
     updateHUD();
@@ -642,6 +702,8 @@
     if(btn2Label){ overlayBtn2.style.display='inline-block'; overlayBtn2.textContent = btn2Label; }
     else overlayBtn2.style.display = 'none';
     overlay.style.display = 'flex';
+    currentScreen = 'overlay';
+    setNavRows([[overlayBtn, btn2Label ? overlayBtn2 : null]]);
   }
   function hideOverlay(){ overlay.style.display = 'none'; }
 
@@ -655,11 +717,12 @@
   // ---------- Map screen ----------
   const mapScreen = document.getElementById('mapScreen');
   const worldsContainer = document.getElementById('worldsContainer');
-  function showMap(){ mapScreen.style.display = 'flex'; }
+  function showMap(){ mapScreen.style.display = 'flex'; currentScreen = 'map'; }
   function hideMap(){ mapScreen.style.display = 'none'; }
 
   function buildMap(){
     worldsContainer.innerHTML = '';
+    const rows = [];
     for(let w=1; w<=8; w++){
       const theme = WORLD_THEMES[(w-1)%WORLD_THEMES.length];
       const row = document.createElement('div');
@@ -671,6 +734,7 @@
       row.appendChild(title);
       const btnRow = document.createElement('div');
       btnRow.className = 'level-buttons';
+      const navRow = [];
       for(let l=1; l<=3; l++){
         const btn = document.createElement('button');
         const unlocked = isUnlocked(w,l);
@@ -682,12 +746,16 @@
             lives = 3;
             startLevel(w,l);
           });
+          navRow.push(btn);
         }
         btnRow.appendChild(btn);
       }
       row.appendChild(btnRow);
       worldsContainer.appendChild(row);
+      if(navRow.length) rows.push(navRow);
     }
+    rows.push([document.getElementById('resetProgressBtn')]);
+    setNavRows(rows);
   }
   document.getElementById('resetProgressBtn').addEventListener('click', async () => {
     completedSet = new Set();
@@ -719,12 +787,21 @@
 
   // ---------- Input ----------
   window.addEventListener('keydown', (e) => {
+    if(currentScreen !== 'playing'){
+      if(['ArrowLeft','a','A'].includes(e.key)){ navMove('left'); e.preventDefault(); }
+      else if(['ArrowRight','d','D'].includes(e.key)){ navMove('right'); e.preventDefault(); }
+      else if(['ArrowUp','w','W'].includes(e.key)){ navMove('up'); e.preventDefault(); }
+      else if(['ArrowDown','s','S'].includes(e.key)){ navMove('down'); e.preventDefault(); }
+      else if(['Enter',' '].includes(e.key)){ navActivate(); e.preventDefault(); }
+      return;
+    }
     if(['ArrowLeft','a','A'].includes(e.key)) keys.left = true;
     if(['ArrowRight','d','D'].includes(e.key)) keys.right = true;
     if(['ArrowDown','s','S'].includes(e.key)) keys.down = true;
     if(['ArrowUp','w','W',' '].includes(e.key)) { keys.jump = true; e.preventDefault(); }
   });
   window.addEventListener('keyup', (e) => {
+    if(currentScreen !== 'playing') return;
     if(['ArrowLeft','a','A'].includes(e.key)) keys.left = false;
     if(['ArrowRight','d','D'].includes(e.key)) keys.right = false;
     if(['ArrowDown','s','S'].includes(e.key)) keys.down = false;
@@ -1200,7 +1277,7 @@
   let mqttControllerClient = null;
   const MQTT_BROKER = 'wss://test.mosquitto.org:8081';
   const TOPIC_PREFIX = 'turboroad-ctrl-v1/';
-  const phoneKeys = {left:false, right:false, jump:false, down:false};
+  const phoneKeys = {left:false, right:false, jump:false, down:false, up:false};
 
   const modeScreen = document.getElementById('modeScreen');
   const views = {
@@ -1211,6 +1288,20 @@
   function showModeView(name){
     Object.values(views).forEach(v => v.classList.remove('active'));
     views[name].classList.add('active');
+    if(name === 'choice'){
+      currentScreen = 'modeChoice';
+      setNavRows([
+        [document.getElementById('choiceLocal')],
+        [document.getElementById('choiceHost')],
+        [document.getElementById('choiceController')]
+      ]);
+    } else if(name === 'host'){
+      currentScreen = 'modeHostCode';
+      setNavRows([[document.getElementById('hostContinueBtn'), document.getElementById('hostBackBtn')]]);
+    } else {
+      currentScreen = 'modeControllerEntry';
+      setNavRows([]);
+    }
   }
   function hideModeScreen(){ modeScreen.style.display = 'none'; }
 
@@ -1255,13 +1346,34 @@
     document.getElementById('controllerCodeTag').textContent = controllerCode;
     modeScreen.style.display = 'none';
     document.getElementById('controllerActive').classList.add('active');
-    // plein écran (autorisé car appelé depuis un geste utilisateur)
+    // plein écran + verrouillage paysage (autorisés car appelés depuis un geste utilisateur)
     try{
       const el = document.documentElement;
-      if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
-      else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      const fsPromise = el.requestFullscreen ? el.requestFullscreen() : (el.webkitRequestFullscreen ? Promise.resolve(el.webkitRequestFullscreen()) : Promise.resolve());
+      Promise.resolve(fsPromise).catch(()=>{}).then(() => {
+        try{
+          if(screen.orientation && screen.orientation.lock){
+            screen.orientation.lock('landscape').catch(()=>{});
+          }
+        }catch(e){}
+      });
     }catch(e){}
+    checkControllerOrientation();
     startControllerConnection();
+  });
+
+  // Landscape isn't lockable on iOS Safari, so show a rotate prompt as a fallback
+  function checkControllerOrientation(){
+    const portrait = window.innerHeight > window.innerWidth;
+    document.getElementById('rotatePrompt').style.display = portrait ? 'flex' : 'none';
+    document.getElementById('controllerPad').style.display = portrait ? 'none' : 'flex';
+    document.getElementById('controllerTop').style.display = portrait ? 'none' : 'flex';
+  }
+  window.addEventListener('resize', () => {
+    if(document.getElementById('controllerActive').classList.contains('active')) checkControllerOrientation();
+  });
+  window.addEventListener('orientationchange', () => {
+    if(document.getElementById('controllerActive').classList.contains('active')) checkControllerOrientation();
   });
 
   // Host: listens for controller input over MQTT
@@ -1275,10 +1387,19 @@
       mqttHostClient.on('message', (topic, message) => {
         try{
           const st = JSON.parse(message.toString());
-          remoteKeys.left = !!st.left;
-          remoteKeys.right = !!st.right;
-          remoteKeys.jump = !!st.jump;
-          remoteKeys.down = !!st.down;
+          const next = {left:!!st.left, right:!!st.right, jump:!!st.jump, down:!!st.down, up:!!st.up};
+          if(currentScreen !== 'playing'){
+            if(next.left && !remoteKeys.left) navMove('left');
+            if(next.right && !remoteKeys.right) navMove('right');
+            if(next.up && !remoteKeys.up) navMove('up');
+            if(next.down && !remoteKeys.down) navMove('down');
+            if(next.jump && !remoteKeys.jump) navActivate();
+          }
+          remoteKeys.left = next.left;
+          remoteKeys.right = next.right;
+          remoteKeys.jump = next.jump;
+          remoteKeys.down = next.down;
+          remoteKeys.up = next.up;
           const hs = document.getElementById('hostStatus');
           if(hs && hs.textContent !== '✓ Manette connectée'){ hs.textContent = '✓ Manette connectée'; hs.style.color = '#69f0ae'; }
         }catch(e){}
@@ -1330,15 +1451,26 @@
     el.addEventListener('mouseup', off);
     el.addEventListener('mouseleave', off);
   }
+  function bindPadDual(id, prop1, prop2){
+    const el = document.getElementById(id);
+    const on = e => { phoneKeys[prop1] = true; phoneKeys[prop2] = true; sendControllerState(); e.preventDefault(); };
+    const off = e => { phoneKeys[prop1] = false; phoneKeys[prop2] = false; sendControllerState(); e.preventDefault(); };
+    el.addEventListener('touchstart', on);
+    el.addEventListener('touchend', off);
+    el.addEventListener('touchcancel', off);
+    el.addEventListener('mousedown', on);
+    el.addEventListener('mouseup', off);
+    el.addEventListener('mouseleave', off);
+  }
   bindPad('cLeft','left');
   bindPad('cRight','right');
-  bindPad('cUp','jump');
+  bindPadDual('cUp','up','jump');
   bindPad('cJump','jump');
   bindPad('cDownPad','down');
   bindPad('cDown','down');
 
   document.getElementById('controllerQuitBtn').addEventListener('click', () => {
-    phoneKeys.left = phoneKeys.right = phoneKeys.jump = phoneKeys.down = false;
+    phoneKeys.left = phoneKeys.right = phoneKeys.jump = phoneKeys.down = phoneKeys.up = false;
     sendControllerState();
     if(controllerSendTimer) clearInterval(controllerSendTimer);
     if(mqttControllerClient){ try{ mqttControllerClient.end(true); }catch(e){} }
