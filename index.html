@@ -167,16 +167,16 @@
     position: absolute; inset:0; z-index: 55;
     display: none; flex-direction: column; justify-content: space-between;
     background: radial-gradient(circle at 50% 30%, #2c2f36, #111316);
-    padding: 1.6vh max(3vw, env(safe-area-inset-right)) 1.8vh max(3vw, env(safe-area-inset-left));
-    --cell: clamp(48px, 12vh, 82px);
-    --ab: clamp(58px, 15vh, 92px);
+    padding: 1vh max(2vw, env(safe-area-inset-right)) 1vh max(2vw, env(safe-area-inset-left));
+    --cell: clamp(64px, 18vh, 120px);
+    --ab: clamp(84px, 24vh, 150px);
   }
   #controllerActive.active { display: flex; }
   #controllerTop { display:flex; justify-content: space-between; align-items:flex-start; color:#fff; flex: 0 0 auto; }
   #controllerTop .code-tag { background: rgba(255,255,255,0.15); padding: 5px 14px; border-radius: 8px; font-weight:bold; letter-spacing: 4px; font-size: 14px; }
   #controllerStatus { font-size: 11px; opacity: 0.75; margin-top: 4px; }
   #controllerStatus.ok { color: #69f0ae; opacity: 1; }
-  #controllerLegend { font-size: 10.5px; opacity: 0.6; margin-top: 3px; letter-spacing: 0.3px; }
+  #controllerLegend { font-size: 10px; opacity: 0.55; margin-top: 3px; letter-spacing: 0.3px; }
   #controllerPad { display:flex; justify-content: space-between; align-items:center; flex: 1; min-height: 0; }
 
   /* Rotate-phone prompt (shown while the phone is in portrait) */
@@ -204,19 +204,19 @@
     box-shadow: inset 0 -3px 0 rgba(0,0,0,0.45), inset 0 2px 0 rgba(255,255,255,0.06);
   }
   .dpad-btn:active { background: linear-gradient(180deg,#50565f,#2c2f34); color:#fff; }
-  .dpad-up    { grid-column:2; grid-row:1; border-radius: 10px 10px 0 0; }
-  .dpad-left  { grid-column:1; grid-row:2; border-radius: 10px 0 0 10px; }
+  .dpad-up    { grid-column:2; grid-row:1; border-radius: 14px 14px 0 0; }
+  .dpad-left  { grid-column:1; grid-row:2; border-radius: 14px 0 0 14px; }
   .dpad-center{ grid-column:2; grid-row:2; background:#15171a; box-shadow:none; }
-  .dpad-right { grid-column:3; grid-row:2; border-radius: 0 10px 10px 0; }
-  .dpad-down  { grid-column:2; grid-row:3; border-radius: 0 0 10px 10px; }
+  .dpad-right { grid-column:3; grid-row:2; border-radius: 0 14px 14px 0; }
+  .dpad-down  { grid-column:2; grid-row:3; border-radius: 0 0 14px 14px; }
 
-  /* SELECT / START — small pill buttons in the middle, out of the way of thumbs */
-  .ssGroup { display:flex; flex-direction:column; align-items:center; gap:6px; flex: 0 0 auto; }
-  .ss-labels { display:flex; gap: 22px; }
-  .ss-labels span { font-size: 10px; font-weight:bold; letter-spacing:1px; color:#e57373; }
-  .ss-btns { display:flex; gap: 16px; }
+  /* SELECT / START — pill buttons in the middle, out of the way of thumbs */
+  .ssGroup { display:flex; flex-direction:column; align-items:center; gap:8px; flex: 0 0 auto; }
+  .ss-labels { display:flex; gap: 28px; }
+  .ss-labels span { font-size: 12px; font-weight:bold; letter-spacing:1px; color:#e57373; }
+  .ss-btns { display:flex; gap: 20px; }
   .ss-btn {
-    width: clamp(46px, 9vh, 64px); height: clamp(18px, 3.6vh, 26px);
+    width: clamp(58px, 11vh, 84px); height: clamp(24px, 4.4vh, 34px);
     border-radius: 20px; background: linear-gradient(180deg,#3a3f47,#1f2226);
     box-shadow: inset 0 -2px 0 rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.08);
   }
@@ -450,14 +450,14 @@
       while(px < seg.x2 - 70){
         const r = rnd();
         if(r < 0.24){
-          const py = 190 + rnd()*130;
+          const py = GROUND_Y - (50 + rnd()*65); // reste atteignable (saut max ≈ 130px)
           const pw = 80 + rnd()*80;
           platforms.push({x:px, y:py, w:pw, h:16});
           const coinCount = 1+Math.floor(rnd()*4);
           for(let i=0;i<coinCount;i++) coins.push({x:px+18+i*24, y:py-28, collected:false});
           px += pw + 90 + rnd()*100;
         } else if(r < 0.46){
-          const by = 250 + rnd()*50;
+          const by = GROUND_Y - (95 + rnd()*50); // le dessous du bloc reste atteignable en sautant
           const count = 1+Math.floor(rnd()*3);
           for(let i=0;i<count;i++){
             const isBrick = rnd() < 0.35;
@@ -917,6 +917,18 @@
       }
     }
 
+    // pipes: solid on top, so the car can stand on them (needed to warp)
+    for(const pipe of levelData.pipes){
+      const prevBottom = player.y + player.h - player.vy;
+      if(player.x + player.w > pipe.x && player.x < pipe.x + pipe.w){
+        if(player.vy >= 0 && prevBottom <= pipe.y + 2 && player.y + player.h >= pipe.y && player.y + player.h <= pipe.y + 20){
+          player.y = pipe.y - player.h;
+          player.vy = 0;
+          player.grounded = true;
+        }
+      }
+    }
+
     // blocks: hit from below
     for(const b of levelData.blocks){
       if(b.gone) continue;
@@ -1358,13 +1370,13 @@
     hostCode = genCode();
     document.getElementById('hostCodeDisplay').textContent = hostCode;
     showModeView('host');
+    startHostListening(hostCode); // dès l'affichage du code, pour que la manette puisse déjà appuyer sur "Continuer"
   });
   document.getElementById('hostBackBtn').addEventListener('click', () => showModeView('choice'));
   document.getElementById('hostContinueBtn').addEventListener('click', () => {
     remoteHostMode = true;
     document.getElementById('hostCodeTag').style.display = 'block';
     document.getElementById('hostCodeTag').textContent = '📱 code: ' + hostCode;
-    startHostListening(hostCode);
     hideModeScreen();
     loadProgress();
     showMap();
