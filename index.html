@@ -166,21 +166,61 @@
   #controllerActive {
     position: absolute; inset:0; z-index: 55;
     display: none; flex-direction: column; justify-content: space-between;
-    background: #10151c; padding: 20px;
+    background: radial-gradient(circle at 50% 30%, #232b38, #0d1117);
+    padding: 4vh 5vw;
   }
   #controllerActive.active { display: flex; }
   #controllerTop { display:flex; justify-content: space-between; align-items:center; color:#fff; }
-  #controllerTop .code-tag { background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 8px; font-weight:bold; letter-spacing: 3px; }
-  #controllerPad { display:flex; justify-content: space-between; align-items:flex-end; }
-  .pad-group { display:flex; gap: 16px; }
-  .pad-btn {
-    border-radius: 50%; background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.4);
-    color:#fff; font-size: 34px; font-weight:bold; display:flex; align-items:center; justify-content:center;
+  #controllerTop .code-tag { background: rgba(255,255,255,0.15); padding: 6px 16px; border-radius: 8px; font-weight:bold; letter-spacing: 4px; font-size: 15px; }
+  #controllerStatus { font-size: 12px; opacity: 0.75; margin-top: 4px; }
+  #controllerStatus.ok { color: #69f0ae; opacity: 1; }
+  #controllerPad { display:flex; justify-content: space-between; align-items:center; flex: 1; }
+
+  /* D-pad, Nintendo style */
+  .dpad {
+    display: grid;
+    grid-template-columns: 22vw 22vw 22vw;
+    grid-template-rows: 22vw 22vw 22vw;
+    max-width: 220px; max-height: 220px;
+    width: 60vw; height: 60vw;
   }
-  .pad-btn:active { background: rgba(255,255,255,0.4); }
-  #cLeft, #cRight { width: 84px; height: 84px; }
-  #cDown { width: 64px; height: 64px; font-size: 24px; align-self:flex-end; }
-  #cJump { width: 110px; height: 110px; background: rgba(255,204,0,0.35); border-color: rgba(255,204,0,0.8); }</style>
+  .dpad-btn {
+    background: linear-gradient(180deg,#3a3f47,#23262b);
+    color:#cfd3d8; display:flex; align-items:center; justify-content:center;
+    font-size: 8vw; user-select:none;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.45), inset 0 2px 0 rgba(255,255,255,0.06);
+  }
+  .dpad-btn:active { background: linear-gradient(180deg,#50565f,#2c2f34); color:#fff; }
+  .dpad-up    { grid-column:2; grid-row:1; border-radius: 10px 10px 0 0; }
+  .dpad-left  { grid-column:1; grid-row:2; border-radius: 10px 0 0 10px; }
+  .dpad-center{ grid-column:2; grid-row:2; background:#15171a; box-shadow:none; }
+  .dpad-right { grid-column:3; grid-row:2; border-radius: 0 10px 10px 0; }
+  .dpad-down  { grid-column:2; grid-row:3; border-radius: 0 0 10px 10px; }
+
+  /* A/B action buttons, Nintendo style diagonal layout */
+  .abpad { position: relative; width: 46vw; height: 46vw; max-width: 240px; max-height: 240px; }
+  .ab-btn {
+    position:absolute; border-radius:50%; color:#fff; font-weight:bold;
+    display:flex; align-items:center; justify-content:center;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+    user-select:none;
+  }
+  #cJump {
+    width: 34vw; height: 34vw; max-width: 150px; max-height: 150px;
+    right: 0; top: 0; font-size: 6vw;
+    background: radial-gradient(circle at 30% 28%, #ff8a65, #d84315);
+    box-shadow: 0 6px 0 #8f2d0f, inset 0 2px 4px rgba(255,255,255,0.3);
+  }
+  #cJump:active { box-shadow: 0 2px 0 #8f2d0f; transform: translateY(4px); }
+  #cDown {
+    width: 26vw; height: 26vw; max-width: 110px; max-height: 110px;
+    left: 0; bottom: 0; font-size: 4.5vw;
+    background: radial-gradient(circle at 30% 28%, #4fc3f7, #0277bd);
+    box-shadow: 0 6px 0 #01579b, inset 0 2px 4px rgba(255,255,255,0.3);
+  }
+  #cDown:active { box-shadow: 0 2px 0 #01579b; transform: translateY(4px); }
+  .ab-label { position:absolute; bottom: -22px; width:100%; text-align:center; font-size:11px; color:#8a939e; letter-spacing:1px; }</style>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
 <div id="game-wrap">
@@ -250,6 +290,7 @@
       <h1>📺 Mode écran</h1>
       <div class="subtitle">Entre ce code sur le téléphone qui servira de manette</div>
       <div id="hostCodeDisplay">----</div>
+      <div id="hostStatus" style="font-size:13px; opacity:0.8; margin-bottom:10px;">En attente d'une manette…</div>
       <div class="subtitle">La manette se connectera automatiquement. Tu peux aussi jouer au clavier ici en même temps.</div>
       <button class="mode-btn" id="hostContinueBtn">Continuer vers le jeu ▶</button>
       <button class="mode-btn secondary" id="hostBackBtn">Retour</button>
@@ -268,17 +309,23 @@
 
   <div id="controllerActive">
     <div id="controllerTop">
-      <div class="code-tag" id="controllerCodeTag">----</div>
+      <div>
+        <div class="code-tag" id="controllerCodeTag">----</div>
+        <div id="controllerStatus">Connexion en cours…</div>
+      </div>
       <button class="mode-btn danger" id="controllerQuitBtn">Quitter</button>
     </div>
     <div id="controllerPad">
-      <div class="pad-group">
-        <div class="pad-btn" id="cLeft">◀</div>
-        <div class="pad-btn" id="cRight">▶</div>
+      <div class="dpad">
+        <div class="dpad-btn dpad-up" id="cUp">▲</div>
+        <div class="dpad-btn dpad-left" id="cLeft">◀</div>
+        <div class="dpad-btn dpad-center"></div>
+        <div class="dpad-btn dpad-right" id="cRight">▶</div>
+        <div class="dpad-btn dpad-down" id="cDownPad">▼</div>
       </div>
-      <div class="pad-group">
-        <div class="pad-btn" id="cDown">▼</div>
-        <div class="pad-btn" id="cJump">⤒</div>
+      <div class="abpad">
+        <div class="ab-btn" id="cDown">B</div>
+        <div class="ab-btn" id="cJump">A</div>
       </div>
     </div>
   </div>
@@ -1147,9 +1194,12 @@
   // ---------- Mode selection (local / TV host / phone controller) ----------
   let remoteHostMode = false;
   let hostCode = null;
-  let hostPollTimer = null;
   let controllerCode = null;
   let controllerSendTimer = null;
+  let mqttHostClient = null;
+  let mqttControllerClient = null;
+  const MQTT_BROKER = 'wss://test.mosquitto.org:8081';
+  const TOPIC_PREFIX = 'turboroad-ctrl-v1/';
   const phoneKeys = {left:false, right:false, jump:false, down:false};
 
   const modeScreen = document.getElementById('modeScreen');
@@ -1186,7 +1236,7 @@
     remoteHostMode = true;
     document.getElementById('hostCodeTag').style.display = 'block';
     document.getElementById('hostCodeTag').textContent = '📱 code: ' + hostCode;
-    startHostPolling(hostCode);
+    startHostListening(hostCode);
     hideModeScreen();
     loadProgress();
     showMap();
@@ -1205,53 +1255,94 @@
     document.getElementById('controllerCodeTag').textContent = controllerCode;
     modeScreen.style.display = 'none';
     document.getElementById('controllerActive').classList.add('active');
-    startControllerSending();
+    // plein écran (autorisé car appelé depuis un geste utilisateur)
+    try{
+      const el = document.documentElement;
+      if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+      else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    }catch(e){}
+    startControllerConnection();
   });
 
-  function startHostPolling(code){
-    if(hostPollTimer) clearInterval(hostPollTimer);
-    hostPollTimer = setInterval(async () => {
-      try{
-        const res = await window.storage.get('controller:'+code, true);
-        if(res && res.value){
-          const st = JSON.parse(res.value);
+  // Host: listens for controller input over MQTT
+  function startHostListening(code){
+    if(mqttHostClient){ try{ mqttHostClient.end(true); }catch(e){} }
+    try{
+      mqttHostClient = mqtt.connect(MQTT_BROKER, { connectTimeout: 8000, reconnectPeriod: 2000 });
+      mqttHostClient.on('connect', () => {
+        mqttHostClient.subscribe(TOPIC_PREFIX + code);
+      });
+      mqttHostClient.on('message', (topic, message) => {
+        try{
+          const st = JSON.parse(message.toString());
           remoteKeys.left = !!st.left;
           remoteKeys.right = !!st.right;
           remoteKeys.jump = !!st.jump;
           remoteKeys.down = !!st.down;
-        }
-      }catch(e){ /* pas encore connecté ou erreur réseau, on ignore */ }
-    }, 150);
+          const hs = document.getElementById('hostStatus');
+          if(hs && hs.textContent !== '✓ Manette connectée'){ hs.textContent = '✓ Manette connectée'; hs.style.color = '#69f0ae'; }
+        }catch(e){}
+      });
+    }catch(e){ /* mqtt indisponible, le clavier reste utilisable */ }
   }
 
-  async function sendControllerState(){
+  // Controller (phone): publishes input state over MQTT
+  function startControllerConnection(){
+    const statusEl = document.getElementById('controllerStatus');
+    statusEl.textContent = 'Connexion en cours…';
+    statusEl.classList.remove('ok');
+    if(mqttControllerClient){ try{ mqttControllerClient.end(true); }catch(e){} }
     try{
-      await window.storage.set('controller:'+controllerCode, JSON.stringify(phoneKeys), true);
-    }catch(e){ /* ignore */ }
+      mqttControllerClient = mqtt.connect(MQTT_BROKER, { connectTimeout: 8000, reconnectPeriod: 2000 });
+      mqttControllerClient.on('connect', () => {
+        statusEl.textContent = '✓ Connecté à l\'écran';
+        statusEl.classList.add('ok');
+        if(controllerSendTimer) clearInterval(controllerSendTimer);
+        controllerSendTimer = setInterval(sendControllerState, 150);
+      });
+      mqttControllerClient.on('reconnect', () => {
+        statusEl.textContent = 'Reconnexion…';
+        statusEl.classList.remove('ok');
+      });
+      mqttControllerClient.on('error', () => {
+        statusEl.textContent = '⚠ Connexion impossible, réessaie';
+        statusEl.classList.remove('ok');
+      });
+    }catch(e){
+      statusEl.textContent = '⚠ Connexion impossible sur cet appareil';
+    }
   }
-  function startControllerSending(){
-    if(controllerSendTimer) clearInterval(controllerSendTimer);
-    controllerSendTimer = setInterval(sendControllerState, 200);
+
+  function sendControllerState(){
+    if(mqttControllerClient && mqttControllerClient.connected){
+      mqttControllerClient.publish(TOPIC_PREFIX + controllerCode, JSON.stringify(phoneKeys));
+    }
   }
+
   function bindPad(id, prop){
     const el = document.getElementById(id);
     const on = e => { phoneKeys[prop] = true; sendControllerState(); e.preventDefault(); };
     const off = e => { phoneKeys[prop] = false; sendControllerState(); e.preventDefault(); };
     el.addEventListener('touchstart', on);
     el.addEventListener('touchend', off);
+    el.addEventListener('touchcancel', off);
     el.addEventListener('mousedown', on);
     el.addEventListener('mouseup', off);
     el.addEventListener('mouseleave', off);
   }
   bindPad('cLeft','left');
   bindPad('cRight','right');
+  bindPad('cUp','jump');
   bindPad('cJump','jump');
+  bindPad('cDownPad','down');
   bindPad('cDown','down');
 
   document.getElementById('controllerQuitBtn').addEventListener('click', () => {
     phoneKeys.left = phoneKeys.right = phoneKeys.jump = phoneKeys.down = false;
     sendControllerState();
     if(controllerSendTimer) clearInterval(controllerSendTimer);
+    if(mqttControllerClient){ try{ mqttControllerClient.end(true); }catch(e){} }
+    try{ if(document.exitFullscreen) document.exitFullscreen(); }catch(e){}
     document.getElementById('controllerActive').classList.remove('active');
     modeScreen.style.display = 'flex';
     showModeView('choice');
