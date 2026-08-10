@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Turbo Road - Le jeu</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #1a1a2e;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    touch-action: none;
+    user-select: none;
+  }
+  #game-wrap {
+    position: relative;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  canvas {
+    background: #6ec6ff;
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    image-rendering: pixelated;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  }
+  #hud {
+    position: absolute; top: 8px; left: 8px; right: 8px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    color: #fff; font-weight: bold; font-size: 15px;
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none;
+  }
+  #hud .left, #hud .right { display: flex; flex-direction: column; gap: 3px; }
+  #hud .right { align-items: flex-end; }
+  #fuelBar { width: 90px; height: 8px; background: rgba(0,0,0,0.4); border-radius: 4px; overflow: hidden; margin-top:2px; display:none; }
+  #fuelFill { height: 100%; background: linear-gradient(90deg,#00e5ff,#2979ff); width:100%; }
+  #mapBtn {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-58px);
+    background: rgba(0,0,0,0.5); color:#fff; border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 8px; padding: 4px 12px; font-size: 13px; font-weight:bold; cursor:pointer;
+    pointer-events: auto; z-index: 15;
+  }
+  #fullscreenBtn {
+    position: absolute; top: 8px; left: 50%; transform: translateX(48px);
+    background: rgba(0,0,0,0.5); color:#fff; border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 8px; padding: 4px 12px; font-size: 15px; font-weight:bold; cursor:pointer;
+    pointer-events: auto; z-index: 15;
+  }
+
+  #overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column;
+    background: rgba(0,0,0,0.78);
+    color: #fff; text-align: center;
+    z-index: 30; padding: 20px;
+  }
+  #overlay h1 { font-size: 30px; margin-bottom: 8px; text-shadow: 2px 2px 0 #000;}
+  #overlay p { font-size: 15px; margin-bottom: 18px; line-height:1.5; max-width: 480px; }
+  #overlay .btnrow { display:flex; gap: 12px; flex-wrap: wrap; justify-content:center; }
+  #overlay button {
+    background: #ffcc00; border: none; padding: 12px 26px;
+    font-size: 17px; font-weight: bold; border-radius: 8px;
+    cursor: pointer; box-shadow: 0 4px 0 #b38f00; color:#222;
+  }
+  #overlay button.secondary { background:#4fc3f7; box-shadow: 0 4px 0 #0288d1; }
+  #overlay button:active { transform: translateY(2px); box-shadow: 0 2px 0 #b38f00; }
+
+  #controls {
+    position: absolute;
+    bottom: max(30px, env(safe-area-inset-bottom));
+    left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    padding: 0 max(34px, env(safe-area-inset-left)) 0 max(34px, env(safe-area-inset-left));
+    padding-right: max(34px, env(safe-area-inset-right));
+    pointer-events: none; z-index: 10;
+  }
+  .ctrl-group { display: flex; gap: 10px; pointer-events: auto; align-items:flex-end; }
+  .btn {
+    width: 58px; height: 58px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    border: 3px solid rgba(255,255,255,0.6);
+    color: #fff; font-size: 24px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn:active { background: rgba(255,255,255,0.5); }
+  #jumpBtn { width: 74px; height: 74px; background: rgba(255,204,0,0.4); border-color: rgba(255,204,0,0.8);}
+  #downBtn { width: 46px; height: 46px; font-size:18px; }
+  @media (min-width: 900px) {
+    #controls { display: none; }
+  }
+
+  /* Map screen */
+  #mapScreen {
+    position: absolute; inset: 0; z-index: 25;
+    background: linear-gradient(180deg,#0f2027,#203a43,#2c5364);
+    display: none; flex-direction: column; align-items: center;
+    overflow-y: auto; padding: 20px 10px 40px;
+    color: #fff;
+  }
+  #mapScreen h1 { text-shadow: 2px 2px 0 #000; margin: 6px 0 2px; font-size: 26px; }
+  #mapScreen .subtitle { opacity: 0.8; font-size: 13px; margin-bottom: 16px; }
+  .world-row {
+    width: 100%; max-width: 640px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border-left: 8px solid #fff;
+  }
+  .world-row .world-title { font-weight: bold; font-size: 16px; margin-bottom: 8px; text-shadow: 1px 1px 0 #000;}
+  .level-buttons { display: flex; gap: 10px; }
+  .level-btn {
+    flex: 1; padding: 10px 4px; border-radius: 10px; border: none;
+    font-size: 14px; font-weight: bold; cursor: pointer;
+    background: #ffcc00; color:#222; box-shadow: 0 3px 0 #b38f00;
+  }
+  .level-btn.locked { background: #555; color:#999; box-shadow: 0 3px 0 #333; cursor: not-allowed; }
+  .level-btn.done { background: #66bb6a; box-shadow: 0 3px 0 #2e7d32; color:#fff; }
+  .level-btn:active:not(.locked) { transform: translateY(2px); box-shadow: none; }
+  #resetProgressBtn {
+    margin-top: 6px; background: transparent; color: #ffb3b3; border: 1px solid #ffb3b3;
+    padding: 6px 14px; border-radius: 8px; font-size: 12px; cursor: pointer;
+  }
+
+  /* Mode select screen */
+  #modeScreen {
+    position: absolute; inset: 0; z-index: 50;
+    background: linear-gradient(180deg,#141e30,#243b55);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff; text-align: center; padding: 20px; overflow-y: auto;
+  }
+  #modeScreen h1 { font-size: 28px; text-shadow: 2px 2px 0 #000; margin-bottom: 6px; }
+  #modeScreen .subtitle { opacity: 0.8; font-size: 13px; margin-bottom: 22px; }
+  .mode-choice-btn {
+    width: 100%; max-width: 380px; margin-bottom: 14px;
+    background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.35);
+    color: #fff; padding: 16px; border-radius: 14px; cursor: pointer;
+    text-align: left; font-size: 15px;
+  }
+  .mode-choice-btn b { display:block; font-size: 17px; margin-bottom: 4px; }
+  .mode-choice-btn:active { background: rgba(255,255,255,0.25); }
+  .mode-view { display:none; flex-direction: column; align-items: center; width:100%; }
+  .mode-view.active { display:flex; }
+  #hostCodeDisplay {
+    font-size: 56px; font-weight: bold; letter-spacing: 10px;
+    background: rgba(255,255,255,0.12); border-radius: 16px;
+    padding: 20px 30px; margin: 16px 0; text-shadow: 2px 2px 0 #000;
+  }
+  #controllerCodeInput {
+    font-size: 28px; letter-spacing: 8px; text-align: center; width: 220px;
+    padding: 10px; border-radius: 10px; border: none; margin-bottom: 14px;
+  }
+  .mode-btn {
+    background: #ffcc00; color:#222; border:none; padding: 12px 26px;
+    border-radius: 10px; font-size: 16px; font-weight:bold; cursor:pointer;
+    box-shadow: 0 4px 0 #b38f00; margin: 6px;
+  }
+  .mode-btn.secondary { background:#4fc3f7; box-shadow: 0 4px 0 #0288d1; }
+  .mode-btn.danger { background:#ef5350; box-shadow: 0 4px 0 #b71c1c; color:#fff; }
+
+  /* Controller (phone) active screen */
+  #controllerActive {
+    position: absolute; inset:0; z-index: 55;
+    display: none; flex-direction: column; justify-content: space-between;
+    background: #10151c; padding: 20px;
+  }
+  #controllerActive.active { display: flex; }
+  #controllerTop { display:flex; justify-content: space-between; align-items:center; color:#fff; }
+  #controllerTop .code-tag { background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 8px; font-weight:bold; letter-spacing: 3px; }
+  #controllerPad { display:flex; justify-content: space-between; align-items:flex-end; }
+  .pad-group { display:flex; gap: 16px; }
+  .pad-btn {
+    border-radius: 50%; background: rgba(255,255,255,0.15); border: 3px solid rgba(255,255,255,0.4);
+    color:#fff; font-size: 34px; font-weight:bold; display:flex; align-items:center; justify-content:center;
+  }
+  .pad-btn:active { background: rgba(255,255,255,0.4); }
+  #cLeft, #cRight { width: 84px; height: 84px; }
+  #cDown { width: 64px; height: 64px; font-size: 24px; align-self:flex-end; }
+  #cJump { width: 110px; height: 110px; background: rgba(255,204,0,0.35); border-color: rgba(255,204,0,0.8); }</style>
+</head>
+<body>
+<div id="game-wrap">
+  <canvas id="game" width="960" height="480"></canvas>
+
+  <div id="hud">
+    <div class="left">
+      <div id="score">🪙 0</div>
+      <div id="lives">❤️❤️❤️</div>
+      <div id="hostCodeTag" style="display:none; font-size:11px; opacity:0.8;">📱 code: ----</div>
+    </div>
+    <div class="right">
+      <div id="levelLabel">Monde 1-1</div>
+      <div id="stateLabel">🚗 Petite voiture</div>
+      <div id="fuelBar"><div id="fuelFill"></div></div>
+    </div>
+  </div>
+  <div id="mapBtn">🗺️ Carte</div>
+  <div id="fullscreenBtn">⛶</div>
+
+  <div id="controls">
+    <div class="ctrl-group">
+      <div class="btn" id="leftBtn">◀</div>
+      <div class="btn" id="rightBtn">▶</div>
+      <div class="btn" id="downBtn">▼</div>
+    </div>
+    <div class="ctrl-group">
+      <div class="btn" id="jumpBtn">⤒</div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <h1 id="overlayTitle">Turbo Road 🚗</h1>
+    <p id="overlayText"></p>
+    <div class="btnrow">
+      <button id="overlayBtn">Jouer</button>
+      <button id="overlayBtn2" class="secondary" style="display:none;">Carte</button>
+    </div>
+  </div>
+
+  <div id="mapScreen">
+    <h1>🗺️ Carte du monde</h1>
+    <div class="subtitle">8 mondes · 3 niveaux chacun · Choisis un niveau</div>
+    <div id="worldsContainer"></div>
+    <button id="resetProgressBtn">Réinitialiser la progression</button>
+  </div>
+
+  <div id="modeScreen">
+    <div id="modeChoice" class="mode-view active">
+      <h1>🚗 Turbo Road</h1>
+      <div class="subtitle">Comment veux-tu jouer ?</div>
+      <button class="mode-choice-btn" id="choiceLocal">
+        <b>🎮 Jouer sur cet appareil</b>
+        Contrôles au clavier ou tactile directement ici (iPad, ordinateur, mobile...).
+      </button>
+      <button class="mode-choice-btn" id="choiceHost">
+        <b>📺 Afficher le jeu ici (écran TV)</b>
+        Cet écran affiche le jeu, un téléphone sert de manette à distance.
+      </button>
+      <button class="mode-choice-btn" id="choiceController">
+        <b>📱 Utiliser ce téléphone comme manette</b>
+        Connecte-toi à une partie affichée sur un autre écran via un code.
+      </button>
+    </div>
+
+    <div id="modeHostCode" class="mode-view">
+      <h1>📺 Mode écran</h1>
+      <div class="subtitle">Entre ce code sur le téléphone qui servira de manette</div>
+      <div id="hostCodeDisplay">----</div>
+      <div class="subtitle">La manette se connectera automatiquement. Tu peux aussi jouer au clavier ici en même temps.</div>
+      <button class="mode-btn" id="hostContinueBtn">Continuer vers le jeu ▶</button>
+      <button class="mode-btn secondary" id="hostBackBtn">Retour</button>
+    </div>
+
+    <div id="modeControllerEntry" class="mode-view">
+      <h1>📱 Mode manette</h1>
+      <div class="subtitle">Entre le code affiché sur l'écran TV</div>
+      <input id="controllerCodeInput" type="tel" inputmode="numeric" maxlength="4" placeholder="0000">
+      <div>
+        <button class="mode-btn" id="controllerConnectBtn">Se connecter</button>
+        <button class="mode-btn secondary" id="controllerBackBtn">Retour</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="controllerActive">
+    <div id="controllerTop">
+      <div class="code-tag" id="controllerCodeTag">----</div>
+      <button class="mode-btn danger" id="controllerQuitBtn">Quitter</button>
+    </div>
+    <div id="controllerPad">
+      <div class="pad-group">
+        <div class="pad-btn" id="cLeft">◀</div>
+        <div class="pad-btn" id="cRight">▶</div>
+      </div>
+      <div class="pad-group">
+        <div class="pad-btn" id="cDown">▼</div>
+        <div class="pad-btn" id="cJump">⤒</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const GROUND_Y = 400;
+  const GRAVITY = 0.65;
+  const MOVE_ACCEL = 0.9;
+  const MAX_SPEED = 6.5;
+  const FRICTION = 0.85;
+  const JUMP_VELOCITY = -13;
+  const BOUNCE_VELOCITY = -9;
+  const INVINCIBLE_TIME = 90;
+
+  const STATE_SIZES = {
+    small:  { w: 34, h: 18 },
+    big:    { w: 46, h: 28 },
+    flying: { w: 50, h: 30 }
+  };
+  const STATE_LABELS = {
+    small: '🚗 Petite voiture',
+    big: '🚙 Grande voiture',
+    flying: '🛩️ Voiture volante'
+  };
+  const STATE_ORDER = ['small','big','flying'];
+
+  const WORLD_THEMES = [
+    { name: 'Prairie',   sky1:'#6ec6ff', sky2:'#bfe9ff', ground:'#5b3a29', grass:'#4caf50', hill:'#8fd18f' },
+    { name: 'Désert',    sky1:'#ffd479', sky2:'#ffe9b3', ground:'#8a5a2b', grass:'#e0b04c', hill:'#d9a441' },
+    { name: 'Plage',     sky1:'#8fe3ff', sky2:'#d7f7ff', ground:'#c2a15a', grass:'#f5deA0', hill:'#7fd8c8' },
+    { name: 'Banquise',  sky1:'#cfeeff', sky2:'#f0fbff', ground:'#7fa8c9', grass:'#e8f7ff', hill:'#a9d6f5' },
+    { name: 'Grotte',    sky1:'#241a33', sky2:'#3a2a52', ground:'#3a2f4d', grass:'#6a4fa0', hill:'#4a3a68' },
+    { name: 'Volcan',    sky1:'#3a1010', sky2:'#6b1e1e', ground:'#2b2b2b', grass:'#ff5722', hill:'#8b2e2e' },
+    { name: 'Ciel',      sky1:'#4fa8ff', sky2:'#cfeaff', ground:'#8d6e63', grass:'#eeeeee', hill:'#ffffff' },
+    { name: 'Château',   sky1:'#2c2440', sky2:'#4a3f6b', ground:'#4a4458', grass:'#7a6f99', hill:'#5c5273' }
+  ];
+
+  // ---------- RNG ----------
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function pickSegmentX(segments, rnd, margin){
+    margin = margin || 50;
+    const seg = segments[Math.floor(rnd()*segments.length)];
+    if(seg.x2 - seg.x1 < margin*2) return seg.x1 + (seg.x2-seg.x1)/2;
+    return seg.x1 + margin + rnd()*(seg.x2-seg.x1-margin*2);
+  }
+
+  // ---------- Level generation ----------
+  function generateLevel(w, l){
+    const seed = (w*137 + l*971 + 5000);
+    const rnd = mulberry32(seed);
+    const difficulty = w + l*0.35;
+    const length = Math.min(2200 + w*280 + l*160, 5400);
+
+    const groundSegments = [];
+    const platforms = [];
+    const blocks = [];
+    const enemies = [];
+    const coins = [];
+
+    let x = 0;
+    while(x < length - 300){
+      const segLen = 220 + rnd()*220;
+      groundSegments.push({x1: x, x2: x+segLen});
+      x += segLen;
+      if(rnd() < Math.min(0.14 + difficulty*0.014, 0.48) && x < length - 420){
+        const gap = 70 + rnd()*55 + Math.min(difficulty*2.5, 35);
+        x += gap;
+      }
+    }
+    groundSegments[groundSegments.length-1].x2 = Math.max(groundSegments[groundSegments.length-1].x2, length);
+
+    for(const seg of groundSegments){
+      let px = seg.x1 + 70;
+      while(px < seg.x2 - 70){
+        const r = rnd();
+        if(r < 0.24){
+          const py = 190 + rnd()*130;
+          const pw = 80 + rnd()*80;
+          platforms.push({x:px, y:py, w:pw, h:16});
+          const coinCount = 1+Math.floor(rnd()*4);
+          for(let i=0;i<coinCount;i++) coins.push({x:px+18+i*24, y:py-28, collected:false});
+          px += pw + 90 + rnd()*100;
+        } else if(r < 0.46){
+          const by = 250 + rnd()*50;
+          const count = 1+Math.floor(rnd()*3);
+          for(let i=0;i<count;i++){
+            const isBrick = rnd() < 0.35;
+            let content = 'coin';
+            if(!isBrick){
+              const rr = rnd();
+              content = rr<0.5 ? 'coin' : rr<0.72 ? 'multicoin' : rr<0.9 ? 'power' : 'life';
+            }
+            blocks.push({x:px+i*36, y:by, w:32, h:32, type: isBrick?'brick':'question', content, used:false, bump:0, gone:false});
+          }
+          px += count*36 + 110 + rnd()*90;
+        } else if(r < 0.72){
+          const flying = w >= 4 && rnd() < 0.4;
+          if(flying){
+            const baseY = 140 + rnd()*110;
+            enemies.push({x:px, y:baseY, baseY, w:30, h:24, minX:px-70, maxX:px+120, speed:1.1+rnd()*1.1, dir:1, alive:true, type:'bird'});
+          } else {
+            enemies.push({x:px, y:GROUND_Y-30, w:30, h:30, minX:Math.max(seg.x1,px-60), maxX:Math.min(seg.x2-30,px+100), speed:1.1+difficulty*0.14+rnd()*0.9, dir:1, alive:true, type:'cone'});
+          }
+          px += 130 + rnd()*100;
+        } else {
+          const coinCount = 1+Math.floor(rnd()*3);
+          for(let i=0;i<coinCount;i++) coins.push({x:px+i*26, y:GROUND_Y-60, collected:false});
+          px += coinCount*26 + 100 + rnd()*110;
+        }
+      }
+    }
+
+    const pipes = [];
+    if(groundSegments.length >= 2){
+      const pipeCount = w > 2 ? (1 + Math.floor(rnd()*2)) : 1;
+      for(let i=0;i<pipeCount;i++){
+        const p1x = pickSegmentX(groundSegments, rnd);
+        let p2x = pickSegmentX(groundSegments, rnd);
+        if(Math.abs(p2x-p1x) < 150) p2x = Math.min(length-150, p2x+250);
+        pipes.push({x:p1x, y:GROUND_Y-50, w:44, h:50, link:i});
+        pipes.push({x:p2x, y:GROUND_Y-50, w:44, h:50, link:i});
+      }
+    }
+
+    return {
+      world:w, level:l, length,
+      groundSegments, platforms, blocks, enemies, coins, pipes,
+      powerItems: [], popups: [],
+      flag: {x: length-60, y: GROUND_Y-160, w:12, h:160},
+      theme: WORLD_THEMES[(w-1) % WORLD_THEMES.length]
+    };
+  }
+
+  // ---------- Persistent progress ----------
+  let completedSet = new Set();
+  let totalCoinsSaved = 0;
+
+  async function loadProgress(){
+    try{
+      const res = await window.storage.get('progress', false);
+      if(res && res.value){
+        const data = JSON.parse(res.value);
+        if(Array.isArray(data.completed)) completedSet = new Set(data.completed);
+        if(typeof data.coins === 'number') totalCoinsSaved = data.coins;
+      }
+    }catch(e){ /* no saved progress yet, or storage unavailable */ }
+    buildMap();
+  }
+  async function saveProgress(){
+    try{
+      await window.storage.set('progress', JSON.stringify({
+        completed: Array.from(completedSet),
+        coins: totalCoinsSaved
+      }), false);
+    }catch(e){ /* ignore save errors */ }
+  }
+
+  function isUnlocked(w,l){
+    if(w===1 && l===1) return true;
+    if(l>1) return completedSet.has(w+'-'+(l-1));
+    return completedSet.has((w-1)+'-3');
+  }
+
+  // ---------- Game state ----------
+  let player, levelData, camX, coinsRun, lives, gameState, animT;
+  let currentWorld = 1, currentLevel = 1;
+  const keys = {left:false, right:false, jump:false, down:false};
+  const remoteKeys = {left:false, right:false, jump:false, down:false};
+  function isDown(name){ return keys[name] || remoteKeys[name]; }
+
+  function resizePlayerTo(state){
+    const oldW = player.w, oldH = player.h;
+    const size = STATE_SIZES[state];
+    player.x += (oldW - size.w)/2;
+    player.y += (oldH - size.h);
+    player.w = size.w; player.h = size.h;
+    player.state = state;
+  }
+
+  function newPlayer(){
+    const size = STATE_SIZES.small;
+    return { x:60, y:GROUND_Y-size.h, w:size.w, h:size.h, vx:0, vy:0, grounded:false,
+             facing:1, state:'small', invincible:0, flyFuel:100, pipeCooldown:0 };
+  }
+
+  function startLevel(w,l){
+    currentWorld = w; currentLevel = l;
+    levelData = generateLevel(w,l);
+    player = newPlayer();
+    camX = 0;
+    coinsRun = 0;
+    animT = 0;
+    gameState = 'playing';
+    hideOverlay();
+    hideMap();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  function respawnInLevel(){
+    player.x = 60; player.y = GROUND_Y - STATE_SIZES.small.h;
+    player.vx = 0; player.vy = 0;
+    resizePlayerTo('small');
+    player.invincible = INVINCIBLE_TIME;
+    camX = 0;
+  }
+
+  function loseLife(){
+    lives--;
+    updateHUD();
+    if(lives <= 0){
+      gameState = 'over';
+      totalCoinsSaved += coinsRun;
+      saveProgress();
+      showOverlay('💥 Partie terminée', `Score de la partie : ${coinsRun} pièces 🪙<br>Tu peux retenter ce niveau.`, 'Réessayer', 'Carte');
+    } else {
+      respawnInLevel();
+    }
+  }
+
+  function regressOrDie(){
+    if(player.invincible > 0) return;
+    if(player.state === 'flying'){
+      resizePlayerTo('big');
+      player.invincible = INVINCIBLE_TIME;
+    } else if(player.state === 'big'){
+      resizePlayerTo('small');
+      player.invincible = INVINCIBLE_TIME;
+    } else {
+      loseLife();
+    }
+  }
+
+  function upgradeState(){
+    const idx = STATE_ORDER.indexOf(player.state);
+    if(idx < STATE_ORDER.length-1){
+      resizePlayerTo(STATE_ORDER[idx+1]);
+      addPopup(player.x+player.w/2, player.y-10, 'BONUS!');
+    } else {
+      lives += 1;
+      addPopup(player.x+player.w/2, player.y-10, '1UP!');
+    }
+  }
+
+  function addPopup(x,y,text){
+    levelData.popups.push({x,y,text,life:50,vy:-0.7});
+  }
+
+  function winLevel(){
+    gameState = 'won';
+    completedSet.add(currentWorld+'-'+currentLevel);
+    totalCoinsSaved += coinsRun;
+    saveProgress();
+    const isLastLevel = currentLevel === 3 && currentWorld === 8;
+    const msg = isLastLevel
+      ? `Score : ${coinsRun} pièces 🪙<br>Tu as terminé les 8 mondes, bravo champion !`
+      : `Score : ${coinsRun} pièces 🪙<br>Niveau ${currentWorld}-${currentLevel} terminé !`;
+    showOverlay('🏁 Circuit terminé !', msg, 'Niveau suivant', 'Carte');
+  }
+
+  function goToNextLevel(){
+    let w = currentWorld, l = currentLevel+1;
+    if(l > 3){ l = 1; w += 1; }
+    if(w > 8){ backToMap(); return; }
+    startLevel(w,l);
+  }
+
+  function backToMap(){
+    gameState = 'map';
+    hideOverlay();
+    buildMap();
+    showMap();
+  }
+
+  function updateHUD(){
+    document.getElementById('score').textContent = '🪙 ' + coinsRun;
+    document.getElementById('lives').textContent = '❤️'.repeat(Math.max(lives,0));
+    document.getElementById('levelLabel').textContent = 'Monde ' + currentWorld + '-' + currentLevel;
+    document.getElementById('stateLabel').textContent = STATE_LABELS[player.state];
+    const fuelBar = document.getElementById('fuelBar');
+    if(player.state === 'flying'){
+      fuelBar.style.display = 'block';
+      document.getElementById('fuelFill').style.width = player.flyFuel + '%';
+    } else {
+      fuelBar.style.display = 'none';
+    }
+  }
+
+  // ---------- Overlay ----------
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlayText = document.getElementById('overlayText');
+  const overlayBtn = document.getElementById('overlayBtn');
+  const overlayBtn2 = document.getElementById('overlayBtn2');
+  let overlayAction = null;
+
+  function showOverlay(title, text, btnLabel, btn2Label){
+    overlayTitle.textContent = title;
+    overlayText.innerHTML = text;
+    overlayBtn.textContent = btnLabel;
+    if(btn2Label){ overlayBtn2.style.display='inline-block'; overlayBtn2.textContent = btn2Label; }
+    else overlayBtn2.style.display = 'none';
+    overlay.style.display = 'flex';
+  }
+  function hideOverlay(){ overlay.style.display = 'none'; }
+
+  overlayBtn.addEventListener('click', () => {
+    if(gameState === 'won') goToNextLevel();
+    else if(gameState === 'over') startLevel(currentWorld, currentLevel);
+    else startLevel(currentWorld, currentLevel);
+  });
+  overlayBtn2.addEventListener('click', backToMap);
+
+  // ---------- Map screen ----------
+  const mapScreen = document.getElementById('mapScreen');
+  const worldsContainer = document.getElementById('worldsContainer');
+  function showMap(){ mapScreen.style.display = 'flex'; }
+  function hideMap(){ mapScreen.style.display = 'none'; }
+
+  function buildMap(){
+    worldsContainer.innerHTML = '';
+    for(let w=1; w<=8; w++){
+      const theme = WORLD_THEMES[(w-1)%WORLD_THEMES.length];
+      const row = document.createElement('div');
+      row.className = 'world-row';
+      row.style.borderLeftColor = theme.grass;
+      const title = document.createElement('div');
+      title.className = 'world-title';
+      title.textContent = 'Monde ' + w + ' — ' + theme.name;
+      row.appendChild(title);
+      const btnRow = document.createElement('div');
+      btnRow.className = 'level-buttons';
+      for(let l=1; l<=3; l++){
+        const btn = document.createElement('button');
+        const unlocked = isUnlocked(w,l);
+        const done = completedSet.has(w+'-'+l);
+        btn.className = 'level-btn' + (!unlocked ? ' locked' : done ? ' done' : '');
+        btn.textContent = unlocked ? (done ? '✔ ' : '') + w + '-' + l : '🔒';
+        if(unlocked){
+          btn.addEventListener('click', () => {
+            lives = 3;
+            startLevel(w,l);
+          });
+        }
+        btnRow.appendChild(btn);
+      }
+      row.appendChild(btnRow);
+      worldsContainer.appendChild(row);
+    }
+  }
+  document.getElementById('resetProgressBtn').addEventListener('click', async () => {
+    completedSet = new Set();
+    totalCoinsSaved = 0;
+    await saveProgress();
+    buildMap();
+  });
+  document.getElementById('mapBtn').addEventListener('click', () => {
+    if(gameState === 'playing'){ gameState = 'map'; buildMap(); showMap(); }
+  });
+
+  const fsBtn = document.getElementById('fullscreenBtn');
+  const wrapEl = document.getElementById('game-wrap');
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  fsBtn.addEventListener('click', () => {
+    if(!isFullscreen()){
+      const el = wrapEl;
+      if(el.requestFullscreen) el.requestFullscreen();
+      else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+      if(document.exitFullscreen) document.exitFullscreen();
+      else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  });
+  document.addEventListener('fullscreenchange', () => { fsBtn.textContent = isFullscreen() ? '⤢' : '⛶'; });
+  document.addEventListener('webkitfullscreenchange', () => { fsBtn.textContent = isFullscreen() ? '⤢' : '⛶'; });
+
+  // ---------- Input ----------
+  window.addEventListener('keydown', (e) => {
+    if(['ArrowLeft','a','A'].includes(e.key)) keys.left = true;
+    if(['ArrowRight','d','D'].includes(e.key)) keys.right = true;
+    if(['ArrowDown','s','S'].includes(e.key)) keys.down = true;
+    if(['ArrowUp','w','W',' '].includes(e.key)) { keys.jump = true; e.preventDefault(); }
+  });
+  window.addEventListener('keyup', (e) => {
+    if(['ArrowLeft','a','A'].includes(e.key)) keys.left = false;
+    if(['ArrowRight','d','D'].includes(e.key)) keys.right = false;
+    if(['ArrowDown','s','S'].includes(e.key)) keys.down = false;
+    if(['ArrowUp','w','W',' '].includes(e.key)) keys.jump = false;
+  });
+  function bindBtn(id, prop){
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', e => { keys[prop]=true; e.preventDefault(); });
+    el.addEventListener('touchend', e => { keys[prop]=false; e.preventDefault(); });
+    el.addEventListener('mousedown', () => { keys[prop]=true; });
+    el.addEventListener('mouseup', () => { keys[prop]=false; });
+    el.addEventListener('mouseleave', () => { keys[prop]=false; });
+  }
+  bindBtn('leftBtn','left');
+  bindBtn('rightBtn','right');
+  bindBtn('jumpBtn','jump');
+  bindBtn('downBtn','down');
+
+  // ---------- Collision helpers ----------
+  function rectsOverlap(a, b){
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  // ---------- Update ----------
+  function update(){
+    animT++;
+    if(player.invincible > 0) player.invincible--;
+    if(player.pipeCooldown > 0) player.pipeCooldown--;
+
+    if(isDown('left')){ player.vx -= MOVE_ACCEL; player.facing = -1; }
+    if(isDown('right')){ player.vx += MOVE_ACCEL; player.facing = 1; }
+    if(!isDown('left') && !isDown('right')) player.vx *= FRICTION;
+    player.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, player.vx));
+    if(Math.abs(player.vx) < 0.05) player.vx = 0;
+
+    if(isDown('jump') && player.grounded){
+      player.vy = JUMP_VELOCITY;
+      player.grounded = false;
+    }
+
+    if(player.state === 'flying' && !player.grounded && isDown('jump') && player.flyFuel > 0){
+      player.vy -= 0.9;
+      if(player.vy < -6.5) player.vy = -6.5;
+      player.flyFuel = Math.max(0, player.flyFuel - 1.4);
+    }
+
+    player.vy += GRAVITY;
+    if(player.vy > 18) player.vy = 18;
+
+    player.x += player.vx;
+    if(player.x < 0) player.x = 0;
+    if(player.x > levelData.length - player.w) player.x = levelData.length - player.w;
+
+    player.y += player.vy;
+    player.grounded = false;
+
+    const feetX = player.x + player.w/2;
+    for(const seg of levelData.groundSegments){
+      if(feetX >= seg.x1 && feetX <= seg.x2){
+        if(player.y + player.h >= GROUND_Y && player.vy >= 0){
+          player.y = GROUND_Y - player.h;
+          player.vy = 0;
+          player.grounded = true;
+        }
+      }
+    }
+
+    for(const p of levelData.platforms){
+      const prevBottom = player.y + player.h - player.vy;
+      if(player.x + player.w > p.x && player.x < p.x + p.w){
+        if(player.vy >= 0 && prevBottom <= p.y + 2 && player.y + player.h >= p.y && player.y + player.h <= p.y + 20){
+          player.y = p.y - player.h;
+          player.vy = 0;
+          player.grounded = true;
+        }
+      }
+    }
+
+    // blocks: hit from below
+    for(const b of levelData.blocks){
+      if(b.gone) continue;
+      if(b.bump > 0) b.bump--;
+      const prevTop = player.y - player.vy;
+      if(player.x + player.w > b.x && player.x < b.x + b.w){
+        if(player.vy < 0 && player.y <= b.y + b.h && prevTop >= b.y + b.h - 2){
+          player.y = b.y + b.h;
+          player.vy = 0;
+          handleBlockHit(b);
+        }
+      }
+    }
+
+    if(player.grounded && player.state === 'flying'){
+      player.flyFuel = Math.min(100, player.flyFuel + 1.6);
+    }
+
+    if(player.y > H + 100){ loseLife(); return; }
+
+    // pipes
+    if(player.pipeCooldown === 0 && isDown('down') && player.grounded){
+      for(const pipe of levelData.pipes){
+        const standing = player.x + player.w > pipe.x + 6 && player.x < pipe.x + pipe.w - 6 &&
+                          Math.abs((player.y+player.h) - pipe.y) < 10;
+        if(standing){
+          const dest = levelData.pipes.find(p => p.link === pipe.link && p !== pipe);
+          if(dest){
+            player.x = dest.x + dest.w/2 - player.w/2;
+            player.y = dest.y - player.h;
+            player.vy = 0;
+            player.pipeCooldown = 40;
+            camX = Math.max(0, Math.min(levelData.length - W, player.x - W/2));
+          }
+          break;
+        }
+      }
+    }
+
+    // enemies
+    for(const en of levelData.enemies){
+      if(!en.alive) continue;
+      en.x += en.speed * en.dir;
+      if(en.x < en.minX || en.x + en.w > en.maxX) en.dir *= -1;
+      if(en.type === 'bird') en.y = en.baseY + Math.sin((animT+en.x)*0.05)*18;
+
+      if(rectsOverlap(player, en)){
+        const playerBottom = player.y + player.h;
+        if(player.vy > 0 && playerBottom - player.vy <= en.y + 10){
+          en.alive = false;
+          player.vy = BOUNCE_VELOCITY;
+          coinsRun += 5;
+        } else {
+          regressOrDie();
+          if(gameState !== 'playing') return;
+        }
+      }
+    }
+
+    // coins
+    for(const c of levelData.coins){
+      if(c.collected) continue;
+      const box = {x:c.x-10, y:c.y-10, w:20, h:20};
+      if(rectsOverlap(player, box)){ c.collected = true; coinsRun += 1; }
+    }
+
+    // power items
+    for(const it of levelData.powerItems){
+      if(it.collected) continue;
+      if(it.vy !== 0){
+        it.y += it.vy;
+        if(it.y <= it.targetY){ it.y = it.targetY; it.vy = 0; }
+      }
+      if(rectsOverlap(player, it)){ it.collected = true; upgradeState(); }
+    }
+
+    // popups
+    for(const p of levelData.popups){ p.y += p.vy; p.life--; }
+    levelData.popups = levelData.popups.filter(p => p.life > 0);
+
+    // flag
+    if(player.x + player.w >= levelData.flag.x){ winLevel(); return; }
+
+    camX = player.x - W/2 + player.w/2;
+    camX = Math.max(0, Math.min(levelData.length - W, camX));
+
+    updateHUD();
+  }
+
+  function handleBlockHit(b){
+    if(b.type === 'question'){
+      if(!b.used){
+        b.used = true;
+        b.bump = 8;
+        spawnItem(b);
+      } else {
+        b.bump = 4;
+      }
+    } else {
+      b.gone = true;
+      coinsRun += 2;
+      addPopup(b.x+b.w/2, b.y, '+2');
+    }
+  }
+
+  function spawnItem(b){
+    switch(b.content){
+      case 'coin': coinsRun += 1; addPopup(b.x+b.w/2, b.y-10, '+1'); break;
+      case 'multicoin': coinsRun += 5; addPopup(b.x+b.w/2, b.y-10, '+5'); break;
+      case 'life': lives += 1; addPopup(b.x+b.w/2, b.y-10, '1UP'); break;
+      case 'power':
+        levelData.powerItems.push({
+          x: b.x+b.w/2-12, y: b.y, w:24, h:24,
+          targetY: b.y-34, vy:-1.6, collected:false
+        });
+        break;
+    }
+  }
+
+  // ---------- Drawing ----------
+  function drawBackground(theme){
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0, theme.sky1);
+    g.addColorStop(1, theme.sky2);
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.fillStyle = theme.hill;
+    for(let i=0;i<8;i++){
+      const hx = (i*400 - camX*0.3) % (W+400) - 200;
+      ctx.beginPath();
+      ctx.arc(hx, GROUND_Y+40, 90, Math.PI, 0);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    for(let i=0;i<6;i++){
+      const cx = (i*500 - camX*0.5) % (W+500) - 250;
+      const cy = 60 + (i%3)*30;
+      ctx.beginPath();
+      ctx.arc(cx,cy,18,0,Math.PI*2);
+      ctx.arc(cx+20,cy-8,22,0,Math.PI*2);
+      ctx.arc(cx+40,cy,18,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawGround(theme){
+    for(const seg of levelData.groundSegments){
+      const x = seg.x1 - camX;
+      const w = seg.x2 - seg.x1;
+      if(x+w < 0 || x > W) continue;
+      ctx.fillStyle = theme.ground;
+      ctx.fillRect(x, GROUND_Y, w, H-GROUND_Y);
+      ctx.fillStyle = theme.grass;
+      ctx.fillRect(x, GROUND_Y, w, 14);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x, GROUND_Y+14, w, 6);
+    }
+  }
+
+  function drawPlatforms(){
+    for(const p of levelData.platforms){
+      const x = p.x - camX;
+      if(x + p.w < 0 || x > W) continue;
+      ctx.fillStyle = '#a0522d';
+      ctx.fillRect(x, p.y, p.w, p.h);
+      ctx.fillStyle = '#c68642';
+      ctx.fillRect(x, p.y, p.w, 5);
+    }
+  }
+
+  function drawBlocks(){
+    for(const b of levelData.blocks){
+      if(b.gone) continue;
+      const x = b.x - camX;
+      const y = b.y - (b.bump || 0);
+      if(x + b.w < 0 || x > W) continue;
+      if(b.type === 'brick'){
+        ctx.fillStyle = '#b5651d';
+        ctx.fillRect(x,y,b.w,b.h);
+        ctx.strokeStyle = '#7a4212'; ctx.lineWidth = 2;
+        ctx.strokeRect(x+2,y+2,b.w-4,b.h-4);
+      } else {
+        ctx.fillStyle = b.used ? '#8d7048' : '#ffb300';
+        ctx.fillRect(x,y,b.w,b.h);
+        ctx.strokeStyle = '#7a5a10'; ctx.lineWidth = 2;
+        ctx.strokeRect(x+2,y+2,b.w-4,b.h-4);
+        if(!b.used){
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 18px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('?', x+b.w/2, y+b.h/2+7);
+        }
+      }
+    }
+  }
+
+  function drawPipes(){
+    for(const pipe of levelData.pipes){
+      const x = pipe.x - camX;
+      if(x + pipe.w < 0 || x > W) continue;
+      ctx.fillStyle = '#2e7d32';
+      ctx.fillRect(x, pipe.y, pipe.w, pipe.h);
+      ctx.fillStyle = '#43a047';
+      ctx.fillRect(x-4, pipe.y, pipe.w+8, 16);
+      ctx.strokeStyle = '#1b5e20'; ctx.lineWidth = 2;
+      ctx.strokeRect(x, pipe.y, pipe.w, pipe.h);
+    }
+  }
+
+  function drawCoins(){
+    for(const c of levelData.coins){
+      if(c.collected) continue;
+      const x = c.x - camX;
+      if(x < -20 || x > W+20) continue;
+      const bob = Math.sin((animT+c.x)*0.1)*3;
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(x, c.y+bob, 9, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#c9a600'; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+
+  function drawPowerItems(){
+    for(const it of levelData.powerItems){
+      if(it.collected) continue;
+      const x = it.x - camX;
+      if(x < -30 || x > W+30) continue;
+      ctx.fillStyle = '#ff4081';
+      ctx.beginPath();
+      const cx = x+it.w/2, cy = it.y+it.h/2, spikes=5, outerR=12, innerR=5;
+      ctx.moveTo(cx, cy-outerR);
+      for(let i=0;i<spikes;i++){
+        let ang = Math.PI/spikes*(2*i+1);
+        ctx.lineTo(cx+Math.sin(ang)*innerR, cy-Math.cos(ang)*innerR);
+        ang = Math.PI/spikes*(2*i+2);
+        ctx.lineTo(cx+Math.sin(ang)*outerR, cy-Math.cos(ang)*outerR);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawPopups(){
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 14px Arial';
+    for(const p of levelData.popups){
+      const x = p.x - camX;
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(1,p.life/50)})`;
+      ctx.fillText(p.text, x, p.y);
+    }
+  }
+
+  function drawEnemies(){
+    for(const en of levelData.enemies){
+      if(!en.alive) continue;
+      const x = en.x - camX;
+      if(x + en.w < 0 || x > W) continue;
+      if(en.type === 'bird'){
+        ctx.fillStyle = '#5d4037';
+        ctx.beginPath();
+        ctx.ellipse(x+en.w/2, en.y+en.h/2, en.w/2, en.h/2, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#3e2723';
+        const flap = Math.sin(animT*0.3)*8;
+        ctx.beginPath();
+        ctx.moveTo(x+en.w/2, en.y+en.h/2);
+        ctx.lineTo(x-6, en.y+en.h/2-flap);
+        ctx.lineTo(x+en.w/2, en.y+en.h/2+6);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#ff6a00';
+        ctx.beginPath();
+        ctx.moveTo(x + en.w/2, en.y);
+        ctx.lineTo(x + en.w, en.y + en.h);
+        ctx.lineTo(x, en.y + en.h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x+4, en.y + en.h*0.55, en.w-8, 5);
+      }
+    }
+  }
+
+  function drawFlag(){
+    const x = levelData.flag.x - camX;
+    ctx.fillStyle = '#888';
+    ctx.fillRect(x, levelData.flag.y, 5, levelData.flag.h);
+    ctx.fillStyle = '#ff3333';
+    ctx.beginPath();
+    ctx.moveTo(x+5, levelData.flag.y);
+    ctx.lineTo(x+45, levelData.flag.y+15);
+    ctx.lineTo(x+5, levelData.flag.y+30);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawCar(){
+    if(player.invincible > 0 && Math.floor(animT/4)%2===0) return; // flicker
+    const x = player.x - camX;
+    const y = player.y;
+    const w = player.w, h = player.h;
+    ctx.save();
+    ctx.translate(x + w/2, y + h/2);
+    ctx.scale(player.facing, 1);
+    ctx.translate(-w/2, -h/2);
+
+    const wheelRot = (animT * (player.vx !== 0 ? 0.3 : 0)) % (Math.PI*2);
+    const bodyColor = player.state === 'small' ? '#e63946' : player.state === 'big' ? '#d62828' : '#9d0208';
+
+    if(player.state === 'flying'){
+      ctx.fillStyle = '#f1faee';
+      ctx.beginPath();
+      ctx.moveTo(w*0.1, h*0.5);
+      ctx.lineTo(-w*0.35, h*0.15);
+      ctx.lineTo(-w*0.2, h*0.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(w*0.9, h*0.5);
+      ctx.lineTo(w*1.35, h*0.15);
+      ctx.lineTo(w*1.2, h*0.6);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.moveTo(2, h);
+    ctx.lineTo(2, h*0.55);
+    ctx.quadraticCurveTo(w*0.15, h*0.15, w*0.4, h*0.15);
+    ctx.lineTo(w*0.7, h*0.15);
+    ctx.quadraticCurveTo(w*0.95, h*0.2, w-2, h*0.55);
+    ctx.lineTo(w-2, h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#000a'; ctx.lineWidth = 2; ctx.stroke();
+
+    ctx.fillStyle = '#bfe9ff';
+    ctx.beginPath();
+    ctx.moveTo(w*0.42, h*0.18);
+    ctx.lineTo(w*0.66, h*0.18);
+    ctx.lineTo(w*0.78, h*0.5);
+    ctx.lineTo(w*0.3, h*0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#222';
+    [w*0.22, w*0.8].forEach(wx => {
+      ctx.save();
+      ctx.translate(wx, h);
+      ctx.rotate(wheelRot);
+      ctx.beginPath();
+      ctx.arc(0,0,player.state==='small'?6:8,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#666'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-6,0); ctx.lineTo(6,0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,-6); ctx.lineTo(0,6); ctx.stroke();
+      ctx.restore();
+    });
+
+    ctx.restore();
+  }
+
+  function draw(){
+    const theme = levelData.theme;
+    drawBackground(theme);
+    drawGround(theme);
+    drawPlatforms();
+    drawPipes();
+    drawBlocks();
+    drawCoins();
+    drawPowerItems();
+    drawEnemies();
+    drawFlag();
+    drawCar();
+    drawPopups();
+  }
+
+  function loop(){
+    if(gameState !== 'playing') return;
+    update();
+    if(gameState !== 'playing'){ if(levelData) draw(); return; }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Mode selection (local / TV host / phone controller) ----------
+  let remoteHostMode = false;
+  let hostCode = null;
+  let hostPollTimer = null;
+  let controllerCode = null;
+  let controllerSendTimer = null;
+  const phoneKeys = {left:false, right:false, jump:false, down:false};
+
+  const modeScreen = document.getElementById('modeScreen');
+  const views = {
+    choice: document.getElementById('modeChoice'),
+    host: document.getElementById('modeHostCode'),
+    entry: document.getElementById('modeControllerEntry')
+  };
+  function showModeView(name){
+    Object.values(views).forEach(v => v.classList.remove('active'));
+    views[name].classList.add('active');
+  }
+  function hideModeScreen(){ modeScreen.style.display = 'none'; }
+
+  function genCode(){ return String(Math.floor(1000 + Math.random()*9000)); }
+
+  function enterLocalGame(){
+    hideModeScreen();
+    remoteHostMode = false;
+    document.getElementById('hostCodeTag').style.display = 'none';
+    loadProgress();
+    showMap();
+  }
+
+  document.getElementById('choiceLocal').addEventListener('click', enterLocalGame);
+
+  document.getElementById('choiceHost').addEventListener('click', () => {
+    hostCode = genCode();
+    document.getElementById('hostCodeDisplay').textContent = hostCode;
+    showModeView('host');
+  });
+  document.getElementById('hostBackBtn').addEventListener('click', () => showModeView('choice'));
+  document.getElementById('hostContinueBtn').addEventListener('click', () => {
+    remoteHostMode = true;
+    document.getElementById('hostCodeTag').style.display = 'block';
+    document.getElementById('hostCodeTag').textContent = '📱 code: ' + hostCode;
+    startHostPolling(hostCode);
+    hideModeScreen();
+    loadProgress();
+    showMap();
+  });
+
+  document.getElementById('choiceController').addEventListener('click', () => {
+    showModeView('entry');
+    document.getElementById('controllerCodeInput').value = '';
+    document.getElementById('controllerCodeInput').focus();
+  });
+  document.getElementById('controllerBackBtn').addEventListener('click', () => showModeView('choice'));
+  document.getElementById('controllerConnectBtn').addEventListener('click', () => {
+    const val = document.getElementById('controllerCodeInput').value.trim();
+    if(val.length !== 4){ alert('Entre le code à 4 chiffres affiché sur l\'écran TV.'); return; }
+    controllerCode = val;
+    document.getElementById('controllerCodeTag').textContent = controllerCode;
+    modeScreen.style.display = 'none';
+    document.getElementById('controllerActive').classList.add('active');
+    startControllerSending();
+  });
+
+  function startHostPolling(code){
+    if(hostPollTimer) clearInterval(hostPollTimer);
+    hostPollTimer = setInterval(async () => {
+      try{
+        const res = await window.storage.get('controller:'+code, true);
+        if(res && res.value){
+          const st = JSON.parse(res.value);
+          remoteKeys.left = !!st.left;
+          remoteKeys.right = !!st.right;
+          remoteKeys.jump = !!st.jump;
+          remoteKeys.down = !!st.down;
+        }
+      }catch(e){ /* pas encore connecté ou erreur réseau, on ignore */ }
+    }, 150);
+  }
+
+  async function sendControllerState(){
+    try{
+      await window.storage.set('controller:'+controllerCode, JSON.stringify(phoneKeys), true);
+    }catch(e){ /* ignore */ }
+  }
+  function startControllerSending(){
+    if(controllerSendTimer) clearInterval(controllerSendTimer);
+    controllerSendTimer = setInterval(sendControllerState, 200);
+  }
+  function bindPad(id, prop){
+    const el = document.getElementById(id);
+    const on = e => { phoneKeys[prop] = true; sendControllerState(); e.preventDefault(); };
+    const off = e => { phoneKeys[prop] = false; sendControllerState(); e.preventDefault(); };
+    el.addEventListener('touchstart', on);
+    el.addEventListener('touchend', off);
+    el.addEventListener('mousedown', on);
+    el.addEventListener('mouseup', off);
+    el.addEventListener('mouseleave', off);
+  }
+  bindPad('cLeft','left');
+  bindPad('cRight','right');
+  bindPad('cJump','jump');
+  bindPad('cDown','down');
+
+  document.getElementById('controllerQuitBtn').addEventListener('click', () => {
+    phoneKeys.left = phoneKeys.right = phoneKeys.jump = phoneKeys.down = false;
+    sendControllerState();
+    if(controllerSendTimer) clearInterval(controllerSendTimer);
+    document.getElementById('controllerActive').classList.remove('active');
+    modeScreen.style.display = 'flex';
+    showModeView('choice');
+  });
+
+  // ---------- Init ----------
+  hideOverlay();
+  showModeView('choice');
+})();
+</script>
+</body>
+</html>
