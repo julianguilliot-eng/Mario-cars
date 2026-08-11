@@ -27,6 +27,10 @@
   #game-wrap {
     position: relative;
     flex: 1 1 auto; min-width: 0;
+    display: flex; flex-direction: column;
+  }
+  #canvasArea {
+    flex: 1 1 auto; min-height: 0;
     display: flex; align-items: center; justify-content: center;
   }
   canvas {
@@ -140,8 +144,25 @@
   }
   #lpDown:active { box-shadow: 0 2px 0 #880e4f; transform: translateY(3px); }
 
+  /* iPad layout — a real reserved bar below the game (not overlapping the canvas),
+     compact NES-style controls at ~2/3 size */
+  #tabletPad {
+    display: none; /* toggled to 'flex' by JS, tablet-sized touch devices only */
+    flex: 0 0 auto;
+    width: 100%;
+    background: #f4f4f4;
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.15);
+    padding: 12px max(28px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));
+    justify-content: space-between; align-items: center;
+    z-index: 8;
+    --cell: clamp(40px, 11vh, 78px);
+    --ab: clamp(54px, 15vh, 100px);
+  }
+  #tabletPad .dpad-btn.pressed { background: linear-gradient(180deg,#50565f,#2c2f34); color:#fff; }
+  #tabletPad .ss-labels span { color: #333; }
+
   @media (hover: hover) and (pointer: fine) {
-    #localPadLeft, #localPadRight { display: none !important; }
+    #localPadLeft, #localPadRight, #tabletPad { display: none !important; }
   }
 
   /* Map screen */
@@ -313,7 +334,9 @@
     </div>
   </div>
 <div id="game-wrap">
-  <canvas id="game" width="960" height="480"></canvas>
+  <div id="canvasArea">
+    <canvas id="game" width="960" height="480"></canvas>
+  </div>
 
   <div id="hud">
     <div class="left">
@@ -330,6 +353,27 @@
   <div id="mapBtn">🗺️ Carte</div>
   <div id="fullscreenBtn">⛶</div>
   <div id="muteBtn" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.5); color:#fff; border:2px solid rgba(255,255,255,0.5); border-radius:8px; padding:4px 10px; font-size:15px; font-weight:bold; cursor:pointer; z-index:15;">🔊</div>
+
+  <div id="tabletPad">
+    <div class="dpad">
+      <div class="dpad-btn dpad-up" id="tpUp">▲</div>
+      <div class="dpad-btn dpad-left" id="tpLeft">◀</div>
+      <div class="dpad-btn dpad-center"></div>
+      <div class="dpad-btn dpad-right" id="tpRight">▶</div>
+      <div class="dpad-btn dpad-down" id="tpDown">▼</div>
+    </div>
+    <div class="ssGroup">
+      <div class="ss-labels"><span>SELECT</span><span>START</span></div>
+      <div class="ss-btns">
+        <div class="ss-btn" id="tpSelect"></div>
+        <div class="ss-btn" id="tpStart"></div>
+      </div>
+    </div>
+    <div class="abRow">
+      <div class="ab-wrap"><div class="ab-btn" id="tpB">B</div></div>
+      <div class="ab-wrap"><div class="ab-btn" id="tpA">A</div></div>
+    </div>
+  </div>
 
   <div id="overlay">
     <h1 id="overlayTitle">Turbo Road 🚗</h1>
@@ -383,7 +427,7 @@
     <div id="modeControllerEntry" class="mode-view">
       <h1>📱 Mode manette</h1>
       <div class="subtitle">Entre le code affiché sur l'écran TV</div>
-      <input id="controllerCodeInput" type="tel" inputmode="numeric" maxlength="4" placeholder="0000">
+      <div id="controllerCodeInputSlot"></div>
       <div>
         <button class="mode-btn" id="controllerConnectBtn">Se connecter</button>
         <button class="mode-btn secondary" id="controllerBackBtn">Retour</button>
@@ -870,9 +914,15 @@
   }
 
   // carry = {state, lives, coins} preserved from the previous level, or null for a brand new run
+  function isTabletTouch(){
+    return window.matchMedia('(pointer: coarse)').matches && Math.max(window.innerWidth, window.innerHeight) >= 980;
+  }
   function setLocalPadsVisible(visible){
-    document.getElementById('localPadLeft').style.display = visible ? 'flex' : 'none';
-    document.getElementById('localPadRight').style.display = visible ? 'flex' : 'none';
+    const tablet = visible && isTabletTouch();
+    const phone = visible && !isTabletTouch();
+    document.getElementById('localPadLeft').style.display = phone ? 'flex' : 'none';
+    document.getElementById('localPadRight').style.display = phone ? 'flex' : 'none';
+    document.getElementById('tabletPad').style.display = tablet ? 'flex' : 'none';
   }
 
   function startLevel(w,l,carry){
@@ -1211,46 +1261,52 @@
   bindTapBtn('lpStart', onStartPressed);
   bindTapBtn('lpSelect', onSelectPressed);
 
+  bindBtn('tpA','jump');
+  bindBtn('tpB','down');
+  bindTapBtn('tpStart', onStartPressed);
+  bindTapBtn('tpSelect', onSelectPressed);
+
   // D-pad: sliding a finger between up/left/right/down without lifting carries the press over
   // (e.g. hold "up" to jump, slide onto "right" while still down to move right as you land)
-  const DPAD_PROPS = { lpUp:['up','jump'], leftBtn:['left'], rightBtn:['right'], lpDownPad:['down'] };
-  const dpadPointers = new Map(); // pointerId -> currently active button id
-  function dpadBtnIdAt(x, y){
-    const el = document.elementFromPoint(x, y);
-    if(!el || !DPAD_PROPS[el.id]) return null;
-    return el.id;
-  }
-  function dpadSetActive(id, active){
-    (DPAD_PROPS[id] || []).forEach(prop => { keys[prop] = active; });
-    const el = document.getElementById(id);
-    if(el) el.classList.toggle('pressed', active);
-  }
-  const lpDpadEl = document.querySelector('#localPadLeft .lp-dpad');
-  if(lpDpadEl){
-    lpDpadEl.addEventListener('pointerdown', e => {
-      const id = dpadBtnIdAt(e.clientX, e.clientY);
-      if(id){ dpadSetActive(id, true); dpadPointers.set(e.pointerId, id); }
+  function setupDpadDrag(containerEl, propsMap){
+    if(!containerEl) return;
+    const pointers = new Map(); // pointerId -> currently active button id
+    function btnIdAt(x, y){
+      const el = document.elementFromPoint(x, y);
+      if(!el || !propsMap[el.id]) return null;
+      return el.id;
+    }
+    function setActive(id, active){
+      (propsMap[id] || []).forEach(prop => { keys[prop] = active; });
+      const el = document.getElementById(id);
+      if(el) el.classList.toggle('pressed', active);
+    }
+    containerEl.addEventListener('pointerdown', e => {
+      const id = btnIdAt(e.clientX, e.clientY);
+      if(id){ setActive(id, true); pointers.set(e.pointerId, id); }
       e.preventDefault();
     });
     window.addEventListener('pointermove', e => {
-      if(!dpadPointers.has(e.pointerId)) return;
-      const oldId = dpadPointers.get(e.pointerId);
-      const newId = dpadBtnIdAt(e.clientX, e.clientY);
+      if(!pointers.has(e.pointerId)) return;
+      const oldId = pointers.get(e.pointerId);
+      const newId = btnIdAt(e.clientX, e.clientY);
       if(newId !== oldId){
-        if(oldId) dpadSetActive(oldId, false);
-        if(newId) dpadSetActive(newId, true);
-        dpadPointers.set(e.pointerId, newId);
+        if(oldId) setActive(oldId, false);
+        if(newId) setActive(newId, true);
+        pointers.set(e.pointerId, newId);
       }
     });
-    const dpadRelease = e => {
-      if(!dpadPointers.has(e.pointerId)) return;
-      const oldId = dpadPointers.get(e.pointerId);
-      if(oldId) dpadSetActive(oldId, false);
-      dpadPointers.delete(e.pointerId);
+    const release = e => {
+      if(!pointers.has(e.pointerId)) return;
+      const oldId = pointers.get(e.pointerId);
+      if(oldId) setActive(oldId, false);
+      pointers.delete(e.pointerId);
     };
-    window.addEventListener('pointerup', dpadRelease);
-    window.addEventListener('pointercancel', dpadRelease);
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
   }
+  setupDpadDrag(document.querySelector('#localPadLeft .lp-dpad'), { lpUp:['up','jump'], leftBtn:['left'], rightBtn:['right'], lpDownPad:['down'] });
+  setupDpadDrag(document.querySelector('#tabletPad .dpad'), { tpUp:['up','jump'], tpLeft:['left'], tpRight:['right'], tpDown:['down'] });
 
   // ---------- Collision helpers ----------
   function rectsOverlap(a, b){
@@ -2092,6 +2148,7 @@
     hideModeScreen();
     remoteHostMode = false;
     document.getElementById('hostCodeTag').style.display = 'none';
+    destroyCodeInput();
     requestFullscreenLandscape();
     loadProgress();
     showMap();
@@ -2100,6 +2157,7 @@
   document.getElementById('choiceLocal').addEventListener('click', enterLocalGame);
 
   document.getElementById('choiceHost').addEventListener('click', () => {
+    destroyCodeInput();
     hostCode = genCode();
     hostCode2 = genCode();
     document.getElementById('hostCodeDisplay').textContent = hostCode;
@@ -2118,17 +2176,36 @@
     showMap();
   });
 
+  const codeInputSlot = document.getElementById('controllerCodeInputSlot');
+  function createCodeInput(){
+    codeInputSlot.innerHTML = '';
+    const input = document.createElement('input');
+    input.id = 'controllerCodeInput';
+    input.type = 'tel';
+    input.inputMode = 'numeric';
+    input.maxLength = 4;
+    input.placeholder = '0000';
+    codeInputSlot.appendChild(input);
+    return input;
+  }
+  function destroyCodeInput(){ codeInputSlot.innerHTML = ''; }
+
   document.getElementById('choiceController').addEventListener('click', () => {
     showModeView('entry');
-    document.getElementById('controllerCodeInput').value = '';
-    document.getElementById('controllerCodeInput').focus();
+    createCodeInput().focus();
   });
-  document.getElementById('controllerBackBtn').addEventListener('click', () => showModeView('choice'));
+  document.getElementById('controllerBackBtn').addEventListener('click', () => {
+    destroyCodeInput();
+    showModeView('choice');
+  });
   document.getElementById('controllerConnectBtn').addEventListener('click', () => {
-    const val = document.getElementById('controllerCodeInput').value.trim();
+    const inputEl = document.getElementById('controllerCodeInput');
+    const val = inputEl ? inputEl.value.trim() : '';
     if(val.length !== 4){ alert('Entre le code à 4 chiffres affiché sur l\'écran TV.'); return; }
     controllerCode = val;
     document.getElementById('controllerCodeTag').textContent = controllerCode;
+    if(inputEl) inputEl.blur();
+    destroyCodeInput(); // no <input> left in the DOM before going fullscreen (avoids Safari's phishing-keyboard warning)
     modeScreen.style.display = 'none';
     document.getElementById('controllerActive').classList.add('active');
     requestFullscreenLandscape();
