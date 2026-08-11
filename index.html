@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Turbo Road - Le jeu</title>
 <style>
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+  }
   html, body {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
     background: #1a1a2e;
@@ -77,31 +84,32 @@
   #localPadLeft, #localPadRight {
     display: none; /* toggled to 'flex' by JS only while actually playing */
     flex: 0 0 auto;
-    width: clamp(130px, 21vw, 210px);
     background: #f4f4f4;
     box-shadow: inset 0 0 12px rgba(0,0,0,0.15);
     flex-direction: column; align-items: center; justify-content: center;
-    gap: clamp(14px, 4vh, 28px);
     padding: 10px 4px;
     z-index: 8;
   }
+  #localPadLeft { width: clamp(170px, 28vw, 280px); gap: clamp(16px, 4vh, 30px); }
+  #localPadRight { width: clamp(130px, 21vw, 210px); gap: clamp(14px, 4vh, 28px); }
   .lp-dpad {
     display: grid;
-    grid-template-columns: repeat(3, clamp(38px, 11vh, 58px));
-    grid-template-rows: repeat(3, clamp(38px, 11vh, 58px));
+    grid-template-columns: repeat(3, clamp(54px, 16vh, 88px));
+    grid-template-rows: repeat(3, clamp(54px, 16vh, 88px));
+    touch-action: none;
   }
   .lp-dpad-btn {
     background: linear-gradient(180deg,#3a3f47,#111316);
     color:#e8e8e8; display:flex; align-items:center; justify-content:center;
-    font-size: clamp(17px, 4.6vh, 24px);
-    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.08);
+    font-size: clamp(24px, 7vh, 36px);
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.08);
   }
-  .lp-dpad-btn:active { background: linear-gradient(180deg,#50565f,#2c2f34); }
-  .lp-up    { grid-column:2; grid-row:1; border-radius: 10px 10px 0 0; }
-  .lp-left  { grid-column:1; grid-row:2; border-radius: 10px 0 0 10px; }
+  .lp-dpad-btn.pressed { background: linear-gradient(180deg,#50565f,#2c2f34); }
+  .lp-up    { grid-column:2; grid-row:1; border-radius: 12px 12px 0 0; }
+  .lp-left  { grid-column:1; grid-row:2; border-radius: 12px 0 0 12px; }
   .lp-center{ grid-column:2; grid-row:2; background:#1c1c1c; box-shadow:none; }
-  .lp-right { grid-column:3; grid-row:2; border-radius: 0 10px 10px 0; }
-  .lp-down  { grid-column:2; grid-row:3; border-radius: 0 0 10px 10px; }
+  .lp-right { grid-column:3; grid-row:2; border-radius: 0 12px 12px 0; }
+  .lp-down  { grid-column:2; grid-row:3; border-radius: 0 0 12px 12px; }
 
   .lp-ss-group { display:flex; flex-direction:column; align-items:center; gap:10px; }
   .lp-ss-label { font-size:11px; font-weight:bold; letter-spacing:1px; color:#333; }
@@ -1192,28 +1200,57 @@
     el.addEventListener('mouseup', () => { keys[prop]=false; });
     el.addEventListener('mouseleave', () => { keys[prop]=false; });
   }
-  function bindBtnDual(id, prop1, prop2){
-    const el = document.getElementById(id);
-    el.addEventListener('touchstart', e => { keys[prop1]=true; keys[prop2]=true; e.preventDefault(); });
-    el.addEventListener('touchend', e => { keys[prop1]=false; keys[prop2]=false; e.preventDefault(); });
-    el.addEventListener('mousedown', () => { keys[prop1]=true; keys[prop2]=true; });
-    el.addEventListener('mouseup', () => { keys[prop1]=false; keys[prop2]=false; });
-    el.addEventListener('mouseleave', () => { keys[prop1]=false; keys[prop2]=false; });
-  }
   function bindTapBtn(id, fn){
     const el = document.getElementById(id);
     const go = e => { fn(); e.preventDefault(); };
     el.addEventListener('touchstart', go);
     el.addEventListener('mousedown', go);
   }
-  bindBtn('leftBtn','left');
-  bindBtn('rightBtn','right');
-  bindBtnDual('lpUp','up','jump');
   bindBtn('lpJump','jump');
-  bindBtn('lpDownPad','down');
   bindBtn('lpDown','down');
   bindTapBtn('lpStart', onStartPressed);
   bindTapBtn('lpSelect', onSelectPressed);
+
+  // D-pad: sliding a finger between up/left/right/down without lifting carries the press over
+  // (e.g. hold "up" to jump, slide onto "right" while still down to move right as you land)
+  const DPAD_PROPS = { lpUp:['up','jump'], leftBtn:['left'], rightBtn:['right'], lpDownPad:['down'] };
+  const dpadPointers = new Map(); // pointerId -> currently active button id
+  function dpadBtnIdAt(x, y){
+    const el = document.elementFromPoint(x, y);
+    if(!el || !DPAD_PROPS[el.id]) return null;
+    return el.id;
+  }
+  function dpadSetActive(id, active){
+    (DPAD_PROPS[id] || []).forEach(prop => { keys[prop] = active; });
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('pressed', active);
+  }
+  const lpDpadEl = document.querySelector('#localPadLeft .lp-dpad');
+  if(lpDpadEl){
+    lpDpadEl.addEventListener('pointerdown', e => {
+      const id = dpadBtnIdAt(e.clientX, e.clientY);
+      if(id){ dpadSetActive(id, true); dpadPointers.set(e.pointerId, id); }
+      e.preventDefault();
+    });
+    window.addEventListener('pointermove', e => {
+      if(!dpadPointers.has(e.pointerId)) return;
+      const oldId = dpadPointers.get(e.pointerId);
+      const newId = dpadBtnIdAt(e.clientX, e.clientY);
+      if(newId !== oldId){
+        if(oldId) dpadSetActive(oldId, false);
+        if(newId) dpadSetActive(newId, true);
+        dpadPointers.set(e.pointerId, newId);
+      }
+    });
+    const dpadRelease = e => {
+      if(!dpadPointers.has(e.pointerId)) return;
+      const oldId = dpadPointers.get(e.pointerId);
+      if(oldId) dpadSetActive(oldId, false);
+      dpadPointers.delete(e.pointerId);
+    };
+    window.addEventListener('pointerup', dpadRelease);
+    window.addEventListener('pointercancel', dpadRelease);
+  }
 
   // ---------- Collision helpers ----------
   function rectsOverlap(a, b){
